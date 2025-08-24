@@ -4,9 +4,8 @@
 FastMCPライブラリを使用して不動産情報ライブラリAPIをMCPツールとして提供
 """
 
-import json
 import os
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from fastmcp import FastMCP
 
@@ -15,7 +14,7 @@ from .exceptions import ReinfiolibAPIError
 from .models import Language, ResponseFormat
 
 
-def create_mcp_server(api_key: Optional[str] = None) -> FastMCP:
+def create_mcp_server(api_key: str | None = None) -> FastMCP:
     """
     不動産情報ライブラリMCPサーバーを作成します
 
@@ -32,7 +31,7 @@ def create_mcp_server(api_key: Optional[str] = None) -> FastMCP:
     try:
         client = ReinfiolibClient(api_key=api_key)
     except ReinfiolibAPIError as e:
-        raise RuntimeError(f"MCPサーバー初期化失敗: {e}")
+        raise RuntimeError(f"MCPサーバー初期化失敗: {e}") from e
 
     # === 不動産価格情報ツール ===
 
@@ -43,15 +42,15 @@ def create_mcp_server(api_key: Optional[str] = None) -> FastMCP:
     )
     async def search_real_estate_transactions(
         prefecture: str,
-        city: Optional[str] = None,
-        from_date: Optional[str] = None,
-        to_date: Optional[str] = None,
-        property_type: Optional[str] = None,
+        city: str | None = None,
+        from_date: str | None = None,
+        to_date: str | None = None,
+        property_type: str | None = None,
         language: str = "ja"
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         不動産取引価格情報を検索します。
-        
+
         Args:
             prefecture: 都道府県コード（01-47）例：東京都=13、大阪府=27
             city: 市区町村コード（オプション）例：千代田区=13101
@@ -59,13 +58,13 @@ def create_mcp_server(api_key: Optional[str] = None) -> FastMCP:
             to_date: 取引時期終了（YYYYMMDD形式）例：20231231
             property_type: 不動産種別（1:宅地、2:中古マンション等、3:中古戸建住宅）
             language: 言語（ja:日本語、en:英語）
-            
+
         Returns:
             不動産取引データ（最大100件）
         """
         try:
             lang = Language.ENGLISH if language == "en" else Language.JAPANESE
-            
+
             result = await client.search_real_estate_transactions(
                 prefecture=prefecture,
                 city=city,
@@ -75,13 +74,13 @@ def create_mcp_server(api_key: Optional[str] = None) -> FastMCP:
                 response_format=ResponseFormat.JSON,
                 lang=lang
             )
-            
+
             # Pydanticモデルの場合は辞書に変換
             if hasattr(result, 'dict'):
                 return result.dict()
-            
+
             return result
-            
+
         except ReinfiolibAPIError as e:
             return {
                 "error": str(e),
@@ -98,30 +97,30 @@ def create_mcp_server(api_key: Optional[str] = None) -> FastMCP:
     async def get_municipalities(
         prefecture: str,
         language: str = "ja"
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         指定都道府県の市区町村一覧を取得します。
-        
+
         Args:
             prefecture: 都道府県コード（01-47）例：東京都=13、京都府=26
             language: 言語（ja:日本語、en:英語）
-            
+
         Returns:
             市区町村情報のリスト
         """
         try:
             lang = Language.ENGLISH if language == "en" else Language.JAPANESE
-            
+
             municipalities = await client.get_municipalities(
                 prefecture=prefecture,
                 lang=lang
             )
-            
+
             return {
                 "total_count": len(municipalities),
                 "data": [m.dict() for m in municipalities]
             }
-            
+
         except ReinfiolibAPIError as e:
             return {
                 "error": str(e),
@@ -142,31 +141,31 @@ def create_mcp_server(api_key: Optional[str] = None) -> FastMCP:
         tile_x: int,
         tile_y: int,
         response_format: str = "geojson"
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         地価公示・地価調査のポイント情報を取得します。
-        
+
         Args:
             zoom_level: ズームレベル（1-18）
             tile_x: タイルX座標
-            tile_y: タイルY座標  
+            tile_y: タイルY座標
             response_format: レスポンス形式（geojson、pbf）
-            
+
         Returns:
             地価ポイント情報（GeoJSON形式）
         """
         try:
             format_enum = ResponseFormat.PBF if response_format == "pbf" else ResponseFormat.GEOJSON
-            
+
             result = await client.get_land_price_points(
                 z=zoom_level,
                 x=tile_x,
                 y=tile_y,
                 response_format=format_enum
             )
-            
+
             return result
-            
+
         except ReinfiolibAPIError as e:
             return {
                 "error": str(e),
@@ -188,23 +187,23 @@ def create_mcp_server(api_key: Optional[str] = None) -> FastMCP:
         tile_y: int,
         info_type: str = "area",
         response_format: str = "geojson"
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         都市計画情報を取得します。
-        
+
         Args:
             zoom_level: ズームレベル（1-18）
             tile_x: タイルX座標
             tile_y: タイルY座標
             info_type: 情報種別（area:都市計画区域、zones:用途地域）
             response_format: レスポンス形式（geojson、pbf）
-            
+
         Returns:
             都市計画情報（GeoJSON形式）
         """
         try:
             format_enum = ResponseFormat.PBF if response_format == "pbf" else ResponseFormat.GEOJSON
-            
+
             if info_type == "zones":
                 result = await client.get_land_use_zones(
                     z=zoom_level,
@@ -219,9 +218,9 @@ def create_mcp_server(api_key: Optional[str] = None) -> FastMCP:
                     y=tile_y,
                     response_format=format_enum
                 )
-            
+
             return result
-            
+
         except ReinfiolibAPIError as e:
             return {
                 "error": str(e),
@@ -243,23 +242,23 @@ def create_mcp_server(api_key: Optional[str] = None) -> FastMCP:
         tile_y: int,
         facility_type: str = "schools",
         response_format: str = "geojson"
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         周辺施設情報を検索します。
-        
+
         Args:
             zoom_level: ズームレベル（1-18）
             tile_x: タイルX座標
             tile_y: タイルY座標
             facility_type: 施設種別（schools:学校、medical:医療機関）
             response_format: レスポンス形式（geojson、pbf）
-            
+
         Returns:
             施設情報（GeoJSON形式）
         """
         try:
             format_enum = ResponseFormat.PBF if response_format == "pbf" else ResponseFormat.GEOJSON
-            
+
             if facility_type == "medical":
                 result = await client.get_medical_facilities(
                     z=zoom_level,
@@ -274,9 +273,9 @@ def create_mcp_server(api_key: Optional[str] = None) -> FastMCP:
                     y=tile_y,
                     response_format=format_enum
                 )
-            
+
             return result
-            
+
         except ReinfiolibAPIError as e:
             return {
                 "error": str(e),
@@ -298,23 +297,23 @@ def create_mcp_server(api_key: Optional[str] = None) -> FastMCP:
         tile_y: int,
         risk_type: str = "disaster_areas",
         response_format: str = "geojson"
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         災害リスク情報を取得します。
-        
+
         Args:
             zoom_level: ズームレベル（1-18）
             tile_x: タイルX座標
             tile_y: タイルY座標
             risk_type: リスク種別（disaster_areas:災害危険区域、liquefaction:液状化発生傾向）
             response_format: レスポンス形式（geojson、pbf）
-            
+
         Returns:
             災害リスク情報（GeoJSON形式）
         """
         try:
             format_enum = ResponseFormat.PBF if response_format == "pbf" else ResponseFormat.GEOJSON
-            
+
             if risk_type == "liquefaction":
                 result = await client.get_liquefaction_tendency(
                     z=zoom_level,
@@ -329,9 +328,9 @@ def create_mcp_server(api_key: Optional[str] = None) -> FastMCP:
                     y=tile_y,
                     response_format=format_enum
                 )
-            
+
             return result
-            
+
         except ReinfiolibAPIError as e:
             return {
                 "error": str(e),
@@ -351,32 +350,34 @@ def create_mcp_server(api_key: Optional[str] = None) -> FastMCP:
         latitude: float,
         longitude: float,
         zoom_level: int = 12,
-        data_types: List[str] = ["land_price", "urban_planning", "facilities"],
+        data_types: list[str] = None,
         response_format: str = "geojson"
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         緯度経度を指定して周辺の地理空間データを取得します。
-        
+
         Args:
             latitude: 緯度（-90.0 〜 90.0）
             longitude: 経度（-180.0 〜 180.0）
             zoom_level: ズームレベル（1-18）
             data_types: 取得データ種別のリスト（land_price、urban_planning、facilities、disaster_risk）
             response_format: レスポンス形式（geojson、pbf）
-            
+
         Returns:
             統合地理空間データ
         """
+        if data_types is None:
+            data_types = ["land_price", "urban_planning", "facilities"]
         try:
             # 緯度経度からタイル座標を計算
             import math
-            
+
             # Web Mercator投影でのタイル座標計算
             n = 2.0 ** zoom_level
             tile_x = int((longitude + 180.0) / 360.0 * n)
             lat_rad = math.radians(latitude)
             tile_y = int((1.0 - math.asinh(math.tan(lat_rad)) / math.pi) / 2.0 * n)
-            
+
             results = {
                 "location": {
                     "latitude": latitude,
@@ -387,9 +388,9 @@ def create_mcp_server(api_key: Optional[str] = None) -> FastMCP:
                 },
                 "data": {}
             }
-            
+
             format_enum = ResponseFormat.PBF if response_format == "pbf" else ResponseFormat.GEOJSON
-            
+
             # 各データ種別を順次取得
             for data_type in data_types:
                 try:
@@ -398,7 +399,7 @@ def create_mcp_server(api_key: Optional[str] = None) -> FastMCP:
                             z=zoom_level, x=tile_x, y=tile_y, response_format=format_enum
                         )
                         results["data"]["land_price"] = data
-                        
+
                     elif data_type == "urban_planning":
                         area_data = await client.get_urban_planning_area(
                             z=zoom_level, x=tile_x, y=tile_y, response_format=format_enum
@@ -410,7 +411,7 @@ def create_mcp_server(api_key: Optional[str] = None) -> FastMCP:
                             "area": area_data,
                             "zones": zone_data
                         }
-                        
+
                     elif data_type == "facilities":
                         schools_data = await client.get_schools(
                             z=zoom_level, x=tile_x, y=tile_y, response_format=format_enum
@@ -422,7 +423,7 @@ def create_mcp_server(api_key: Optional[str] = None) -> FastMCP:
                             "schools": schools_data,
                             "medical": medical_data
                         }
-                        
+
                     elif data_type == "disaster_risk":
                         disaster_data = await client.get_disaster_risk_areas(
                             z=zoom_level, x=tile_x, y=tile_y, response_format=format_enum
@@ -434,15 +435,15 @@ def create_mcp_server(api_key: Optional[str] = None) -> FastMCP:
                             "disaster_areas": disaster_data,
                             "liquefaction": liquefaction_data
                         }
-                        
+
                 except ReinfiolibAPIError as e:
                     results["data"][data_type] = {
                         "error": str(e),
                         "error_type": type(e).__name__
                     }
-            
+
             return results
-            
+
         except Exception as e:
             return {
                 "error": str(e),
@@ -459,10 +460,10 @@ def create_mcp_server(api_key: Optional[str] = None) -> FastMCP:
         description="MCPサーバーの状態を確認します。接続状況やAPIキー設定状況を確認できます。",
         tags={"server", "status", "health"}
     )
-    async def get_server_status() -> Dict[str, Any]:
+    async def get_server_status() -> dict[str, Any]:
         """
         MCPサーバーの状態を確認します。
-        
+
         Returns:
             サーバー状態情報
         """
@@ -480,7 +481,7 @@ def create_mcp_server(api_key: Optional[str] = None) -> FastMCP:
 
 
 def run_server(
-    api_key: Optional[str] = None,
+    api_key: str | None = None,
     transport: str = "stdio",
     host: str = "localhost",
     port: int = 8000
@@ -497,7 +498,7 @@ def run_server(
     # APIキーの取得
     if not api_key:
         api_key = os.getenv("REINFOLIB_API_KEY")
-    
+
     if not api_key:
         print("エラー: APIキーが設定されていません")
         print("環境変数REINFOLIB_API_KEYを設定するか、--api-keyオプションで指定してください")
@@ -506,10 +507,10 @@ def run_server(
     try:
         # MCPサーバー作成と起動
         mcp = create_mcp_server(api_key)
-        
-        print(f"不動産情報ライブラリMCPサーバーを起動中...")
+
+        print("不動産情報ライブラリMCPサーバーを起動中...")
         print(f"トランスポート: {transport}")
-        
+
         if transport == "stdio":
             mcp.run(transport="stdio")
         elif transport == "http":
@@ -520,7 +521,7 @@ def run_server(
             mcp.run(transport="sse", host=host, port=port)
         else:
             raise ValueError(f"未対応のトランスポート: {transport}")
-            
+
     except Exception as e:
         print(f"サーバー起動エラー: {e}")
         raise

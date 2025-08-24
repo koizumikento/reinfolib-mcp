@@ -164,13 +164,17 @@ class TestCLISearchCommand:
 
         assert result.exit_code == 0
         
-        # JSON出力の確認
+        # JSON出力の確認 - 複数行JSONを処理
         output_lines = result.output.strip().split('\n')
-        json_output = None
-        for line in output_lines:
+        json_start_idx = None
+        for i, line in enumerate(output_lines):
             if line.startswith('{'):
-                json_output = json.loads(line)
+                json_start_idx = i
                 break
+        
+        assert json_start_idx is not None, "JSON output not found"
+        json_content = '\n'.join(output_lines[json_start_idx:])
+        json_output = json.loads(json_content)
         
         assert json_output is not None
         assert json_output["total_count"] == 1
@@ -293,9 +297,17 @@ class TestCLIMunicipalitiesCommand:
 
         assert result.exit_code == 0
         
-        # JSON出力の確認
+        # JSON出力の確認 - 複数行JSONを処理
         output_lines = result.output.strip().split('\n')
-        json_output = json.loads(output_lines[0])
+        json_start_idx = None
+        for i, line in enumerate(output_lines):
+            if line.startswith('{'):
+                json_start_idx = i
+                break
+        
+        assert json_start_idx is not None, "JSON output not found"
+        json_content = '\n'.join(output_lines[json_start_idx:])
+        json_output = json.loads(json_content)
         assert json_output["total_count"] == 1
 
 
