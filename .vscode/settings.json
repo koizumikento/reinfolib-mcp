@@ -1,0 +1,94 @@
+{
+  "python.defaultInterpreterPath": ".venv/bin/python",
+  "python.terminal.activateEnvironment": true,
+  
+  // テスト設定
+  "python.testing.pytestEnabled": true,
+  "python.testing.unittestEnabled": false,
+  "python.testing.pytestArgs": [
+    "tests"
+  ],
+  "python.testing.cwd": "${workspaceFolder}",
+  
+  // リンティング設定
+  "python.linting.enabled": true,
+  "python.linting.ruffEnabled": true,
+  "python.linting.pylintEnabled": false,
+  "python.linting.flake8Enabled": false,
+  
+  // フォーマット設定
+  "python.formatting.provider": "black",
+  "python.formatting.blackArgs": [
+    "--line-length=88"
+  ],
+  
+  // 型チェック設定
+  "python.analysis.typeCheckingMode": "basic",
+  "mypy.enabled": true,
+  "mypy.targets": ["src/"],
+  
+  // ファイル保存時の自動実行
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": true,
+    "source.fixAll.ruff": true
+  },
+  
+  // ファイル除外設定
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/.pytest_cache": true,
+    "**/.mypy_cache": true,
+    "**/.ruff_cache": true,
+    "**/htmlcov": true,
+    "**/.coverage": true,
+    "**/dist": true,
+    "**/*.egg-info": true
+  },
+  
+  // 検索除外設定
+  "search.exclude": {
+    "**/__pycache__": true,
+    "**/.venv": true,
+    "**/node_modules": true,
+    "**/.git": true,
+    "**/htmlcov": true,
+    "**/dist": true
+  },
+  
+  // ターミナル設定
+  "terminal.integrated.env.windows": {
+    "PYTHONPATH": "${workspaceFolder}/src"
+  },
+  "terminal.integrated.env.linux": {
+    "PYTHONPATH": "${workspaceFolder}/src"
+  },
+  "terminal.integrated.env.osx": {
+    "PYTHONPATH": "${workspaceFolder}/src"
+  },
+  
+  // ワークスペース固有設定
+  "python.analysis.extraPaths": [
+    "./src"
+  ],
+  
+  // Ruff拡張機能設定
+  "ruff.args": ["--config=pyproject.toml"],
+  "ruff.fixAll": true,
+  "ruff.organizeImports": true,
+  
+  // JSON設定
+  "json.schemas": [
+    {
+      "fileMatch": [
+        "pyproject.toml"
+      ],
+      "url": "https://json.schemastore.org/pyproject.json"
+    }
+  ],
+  
+  // ファイル関連付け
+  "files.associations": {
+    "*.toml": "toml"
+  }
+}

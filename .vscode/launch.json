@@ -1,0 +1,108 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "🧪 現在のテストファイルをデバッグ",
+      "type": "python",
+      "request": "launch",
+      "module": "pytest",
+      "args": [
+        "${file}",
+        "-v",
+        "-s"
+      ],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
+      "justMyCode": false
+    },
+    {
+      "name": "🧪 すべてのテストをデバッグ",
+      "type": "python",
+      "request": "launch",
+      "module": "pytest",
+      "args": [
+        "tests/",
+        "-v",
+        "-s"
+      ],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
+      "justMyCode": false
+    },
+    {
+      "name": "🚀 MCPサーバー起動 (デバッグ)",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/src/reinfolib_mcp/cli.py",
+      "args": [
+        "--api-key",
+        "${env:REINFOLIB_API_KEY}"
+      ],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
+      "justMyCode": true
+    },
+    {
+      "name": "🚀 MCPサーバー起動 (HTTP デバッグ)",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/src/reinfolib_mcp/cli.py",
+      "args": [
+        "--transport",
+        "http",
+        "--port",
+        "8000",
+        "--api-key",
+        "${env:REINFOLIB_API_KEY}"
+      ],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
+      "justMyCode": true
+    },
+    {
+      "name": "🔧 現在のPythonファイルを実行",
+      "type": "python",
+      "request": "launch",
+      "program": "${file}",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
+      "justMyCode": true
+    },
+    {
+      "name": "📋 CLIコマンドテスト",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/src/reinfolib_mcp/cli.py",
+      "args": [
+        "search",
+        "--prefecture",
+        "13",
+        "--limit",
+        "3",
+        "--api-key",
+        "${env:REINFOLIB_API_KEY}"
+      ],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
+      "justMyCode": true
+    }
+  ]
+}

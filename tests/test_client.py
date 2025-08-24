@@ -2,9 +2,9 @@
 APIクライアントのテスト
 """
 
-import pytest
 from unittest.mock import AsyncMock, patch
-import httpx
+
+import pytest
 
 from reinfolib_mcp.client import ReinfiolibClient, SyncReinfiolibClient
 from reinfolib_mcp.exceptions import (
@@ -25,7 +25,7 @@ class TestReinfiolibClient:
     def test_client_initialization_with_api_key(self):
         """APIキー指定でのクライアント初期化"""
         client = ReinfiolibClient(api_key="test_api_key")
-        
+
         assert client.api_key == "test_api_key"
         assert client.base_url == "https://www.reinfolib.mlit.go.jp/ex-api/external"
         assert client.timeout == 30.0
@@ -49,7 +49,7 @@ class TestReinfiolibClient:
             base_url="https://custom.api.example.com",
             timeout=60.0
         )
-        
+
         assert client.base_url == "https://custom.api.example.com"
         assert client.timeout == 60.0
 
@@ -157,7 +157,7 @@ class TestReinfiolibClient:
             mock_request.side_effect = AuthenticationError("APIキーが無効です")
 
             client = ReinfiolibClient(api_key="invalid_key")
-            
+
             with pytest.raises(AuthenticationError):
                 await client.search_real_estate_transactions(prefecture="13")
 
@@ -168,7 +168,7 @@ class TestReinfiolibClient:
             mock_request.side_effect = InvalidParameterError("リクエストパラメータが不正です")
 
             client = ReinfiolibClient(api_key="test_key")
-            
+
             with pytest.raises(InvalidParameterError):
                 await client.search_real_estate_transactions(prefecture="invalid")
 
@@ -179,7 +179,7 @@ class TestReinfiolibClient:
             mock_request.side_effect = NotFoundError("指定されたリソースが見つかりません")
 
             client = ReinfiolibClient(api_key="test_key")
-            
+
             with pytest.raises(NotFoundError):
                 await client.get_municipalities(prefecture="99")
 
@@ -190,7 +190,7 @@ class TestReinfiolibClient:
             mock_request.side_effect = RateLimitError("レート制限に達しました")
 
             client = ReinfiolibClient(api_key="test_key")
-            
+
             with pytest.raises(RateLimitError):
                 await client.search_real_estate_transactions(prefecture="13")
 
@@ -201,7 +201,7 @@ class TestReinfiolibClient:
             mock_request.side_effect = ServerError("サーバーエラー: 500")
 
             client = ReinfiolibClient(api_key="test_key")
-            
+
             with pytest.raises(ServerError):
                 await client.get_land_price_points(z=11, x=1818, y=806)
 
@@ -212,7 +212,7 @@ class TestReinfiolibClient:
             mock_request.side_effect = NetworkError("接続エラー: Connection failed")
 
             client = ReinfiolibClient(api_key="test_key")
-            
+
             with pytest.raises(NetworkError):
                 await client.search_real_estate_transactions(prefecture="13")
 
@@ -339,7 +339,7 @@ class TestReinfiolibClient:
 
             async with ReinfiolibClient(api_key="test_key") as client:
                 assert client.api_key == "test_key"
-            
+
             # acloseが呼ばれることを確認
             mock_instance.aclose.assert_called_once()
 
@@ -351,7 +351,7 @@ class TestSyncReinfiolibClient:
         """同期クライアントの初期化"""
         with patch('reinfolib_mcp.client.ReinfiolibClient') as mock_async_client:
             mock_async_client.return_value = AsyncMock()
-            
+
             client = SyncReinfiolibClient(api_key="test_key")
             assert client._async_client is not None
 
@@ -359,54 +359,54 @@ class TestSyncReinfiolibClient:
         """同期版不動産検索のテスト"""
         mock_result = AsyncMock()
         mock_result.total_count = 50
-        
+
         with patch('reinfolib_mcp.client.ReinfiolibClient') as mock_async_client:
             mock_instance = AsyncMock()
             mock_instance.search_real_estate_transactions.return_value = mock_result
             mock_async_client.return_value = mock_instance
-            
+
             with patch('asyncio.run') as mock_run:
                 mock_run.return_value = mock_result
-                
+
                 client = SyncReinfiolibClient(api_key="test_key")
                 result = client.search_real_estate_transactions(prefecture="13")
-                
+
                 assert result == mock_result
                 mock_run.assert_called_once()
 
     def test_sync_get_municipalities(self):
         """同期版市区町村一覧取得のテスト"""
         mock_result = [AsyncMock(), AsyncMock()]
-        
+
         with patch('reinfolib_mcp.client.ReinfiolibClient') as mock_async_client:
             mock_instance = AsyncMock()
             mock_instance.get_municipalities.return_value = mock_result
             mock_async_client.return_value = mock_instance
-            
+
             with patch('asyncio.run') as mock_run:
                 mock_run.return_value = mock_result
-                
+
                 client = SyncReinfiolibClient(api_key="test_key")
                 result = client.get_municipalities(prefecture="13")
-                
+
                 assert result == mock_result
                 mock_run.assert_called_once()
 
     def test_sync_get_appraisal_info(self):
         """同期版鑑定評価書情報取得のテスト"""
         mock_result = {"data": [{"prefecture": "東京都", "city": "千代田区"}]}
-        
+
         with patch('reinfolib_mcp.client.ReinfiolibClient') as mock_async_client:
             mock_instance = AsyncMock()
             mock_instance.get_appraisal_info.return_value = mock_result
             mock_async_client.return_value = mock_instance
-            
+
             with patch('asyncio.run') as mock_run:
                 mock_run.return_value = mock_result
-                
+
                 client = SyncReinfiolibClient(api_key="test_key")
                 result = client.get_appraisal_info(prefecture="13")
-                
+
                 assert result == mock_result
                 mock_run.assert_called_once()
 
@@ -416,18 +416,18 @@ class TestSyncReinfiolibClient:
             "type": "FeatureCollection",
             "features": [{"properties": {"school_name": "テスト小学校"}}]
         }
-        
+
         with patch('reinfolib_mcp.client.ReinfiolibClient') as mock_async_client:
             mock_instance = AsyncMock()
             mock_instance.get_elementary_school_districts.return_value = mock_result
             mock_async_client.return_value = mock_instance
-            
+
             with patch('asyncio.run') as mock_run:
                 mock_run.return_value = mock_result
-                
+
                 client = SyncReinfiolibClient(api_key="test_key")
                 result = client.get_elementary_school_districts(z=12, x=3636, y=1612)
-                
+
                 assert result == mock_result
                 mock_run.assert_called_once()
 
@@ -436,10 +436,10 @@ class TestSyncReinfiolibClient:
         with patch('reinfolib_mcp.client.ReinfiolibClient') as mock_async_client:
             mock_instance = AsyncMock()
             mock_async_client.return_value = mock_instance
-            
+
             with patch('asyncio.run') as mock_run:
                 with SyncReinfiolibClient(api_key="test_key") as client:
                     assert client is not None
-                
+
                 # closeが呼ばれることを確認
                 mock_run.assert_called_once()

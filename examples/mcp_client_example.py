@@ -10,16 +10,15 @@ import json
 import os
 import subprocess
 import time
-from typing import Dict, Any, List
 
 
 class MCPServerManager:
     """MCPサーバーの管理クラス"""
-    
+
     def __init__(self, api_key: str):
         self.api_key = api_key
         self.server_process = None
-    
+
     def start_server(self, transport: str = "http", port: int = 8000) -> bool:
         """MCPサーバーを起動"""
         try:
@@ -29,10 +28,10 @@ class MCPServerManager:
                 "--transport", transport,
                 "--port", str(port)
             ]
-            
+
             env = os.environ.copy()
             env["REINFOLIB_API_KEY"] = self.api_key
-            
+
             print(f"MCPサーバーを起動中: {' '.join(cmd)}")
             self.server_process = subprocess.Popen(
                 cmd,
@@ -40,21 +39,21 @@ class MCPServerManager:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE
             )
-            
+
             # サーバーの起動を待つ
             time.sleep(5)
-            
+
             if self.server_process.poll() is None:
                 print(f"MCPサーバーが正常に起動しました（PID: {self.server_process.pid}）")
                 return True
             else:
                 print("MCPサーバーの起動に失敗しました")
                 return False
-                
+
         except Exception as e:
             print(f"サーバー起動エラー: {e}")
             return False
-    
+
     def stop_server(self):
         """MCPサーバーを停止"""
         if self.server_process:
@@ -66,7 +65,7 @@ class MCPServerManager:
 def simulate_mcp_client_requests():
     """MCPクライアントのリクエストをシミュレート"""
     print("=== MCPクライアントリクエストシミュレーション ===")
-    
+
     # MCPクライアントからのリクエスト例を表示
     mcp_requests = [
         {
@@ -175,7 +174,7 @@ def simulate_mcp_client_requests():
             "description": "MCPサーバーの状態を確認"
         }
     ]
-    
+
     for i, request in enumerate(mcp_requests, 1):
         print(f"\n{i}. {request['description']}")
         print("   MCPリクエスト:")
@@ -185,7 +184,7 @@ def simulate_mcp_client_requests():
 def claude_desktop_config_example():
     """Claude Desktop設定例"""
     print("\n=== Claude Desktop 設定例 ===")
-    
+
     config = {
         "mcpServers": {
             "reinfolib": {
@@ -197,10 +196,10 @@ def claude_desktop_config_example():
             }
         }
     }
-    
+
     print("config.json に以下の設定を追加:")
     print(json.dumps(config, indent=2, ensure_ascii=False))
-    
+
     print("\n設定手順:")
     print("1. Claude Desktop の設定ファイルを開く")
     print("   - macOS: ~/Library/Application Support/Claude/config.json")
@@ -213,7 +212,7 @@ def claude_desktop_config_example():
 def cursor_mcp_config_example():
     """Cursor MCP設定例"""
     print("\n=== Cursor MCP 設定例 ===")
-    
+
     config = {
         "mcpServers": {
             "reinfolib": {
@@ -225,10 +224,10 @@ def cursor_mcp_config_example():
             }
         }
     }
-    
+
     print("Cursor の設定に以下を追加:")
     print(json.dumps(config, indent=2, ensure_ascii=False))
-    
+
     print("\n使用例:")
     examples = [
         "東京都千代田区の不動産価格を教えて",
@@ -238,7 +237,7 @@ def cursor_mcp_config_example():
         "新宿駅周辺の災害リスク情報を確認",
         "横浜市中区の都市計画情報を表示",
     ]
-    
+
     for i, example in enumerate(examples, 1):
         print(f"{i}. {example}")
 
@@ -246,7 +245,7 @@ def cursor_mcp_config_example():
 def uvx_usage_examples():
     """uvx実行パターンの例"""
     print("\n=== uvx実行パターン例 ===")
-    
+
     examples = [
         {
             "command": "uvx reinfolib-mcp",
@@ -281,7 +280,7 @@ def uvx_usage_examples():
             "description": "環境変数でAPIキーを設定して起動"
         }
     ]
-    
+
     for i, example in enumerate(examples, 1):
         print(f"{i}. {example['description']}")
         print(f"   $ {example['command']}")
@@ -291,7 +290,7 @@ def uvx_usage_examples():
 def integration_workflow_example():
     """統合ワークフロー例"""
     print("\n=== 統合ワークフロー例 ===")
-    
+
     workflow_steps = [
         {
             "step": "1. 地域選定",
@@ -334,7 +333,7 @@ def integration_workflow_example():
             ]
         }
     ]
-    
+
     for workflow in workflow_steps:
         print(f"{workflow['step']}: {workflow['action']}")
         for tool in workflow['tools']:
@@ -345,7 +344,7 @@ def integration_workflow_example():
 def performance_tips():
     """パフォーマンス最適化のヒント"""
     print("\n=== パフォーマンス最適化のヒント ===")
-    
+
     tips = [
         {
             "category": "APIリクエスト最適化",
@@ -384,7 +383,7 @@ def performance_tips():
             ]
         }
     ]
-    
+
     for tip_category in tips:
         print(f"【{tip_category['category']}】")
         for tip in tip_category['tips']:
@@ -396,14 +395,14 @@ def main():
     """メイン実行関数"""
     print("不動産情報ライブラリMCP クライアント使用例")
     print("=" * 60)
-    
+
     # APIキーの確認
     api_key = os.getenv("REINFOLIB_API_KEY")
     if not api_key:
         print("⚠️  環境変数REINFOLIB_API_KEYが設定されていません")
         print("実際の動作確認には APIキーが必要です")
         print()
-    
+
     # 各種例の表示
     simulate_mcp_client_requests()
     claude_desktop_config_example()
@@ -411,10 +410,10 @@ def main():
     uvx_usage_examples()
     integration_workflow_example()
     performance_tips()
-    
+
     print("\n" + "=" * 60)
     print("MCPクライアント使用例の説明が完了しました")
-    
+
     if api_key:
         print("\n実際にMCPサーバーを起動してテストしますか？ (y/n): ", end="")
         try:
@@ -422,12 +421,12 @@ def main():
             if response == 'y':
                 print("MCPサーバーのテスト起動...")
                 manager = MCPServerManager(api_key)
-                
+
                 if manager.start_server(transport="http", port=8000):
                     print("MCPサーバーが起動しました")
                     print("http://localhost:8000 でアクセス可能です")
                     print("終了するには Ctrl+C を押してください")
-                    
+
                     try:
                         while True:
                             time.sleep(1)

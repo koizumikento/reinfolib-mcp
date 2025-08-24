@@ -48,7 +48,7 @@ class TestRealEstateTransaction:
             transaction_price=50000000,
             area=100.5
         )
-        
+
         assert transaction.prefecture == "東京都"
         assert transaction.city == "千代田区"
         assert transaction.transaction_price == 50000000
@@ -74,7 +74,7 @@ class TestRealEstateTransaction:
             longitude=139.7514,
             latitude=35.6851
         )
-        
+
         assert transaction.prefecture_code == "13"
         assert transaction.nearest_station == "国会議事堂前駅"
         assert transaction.longitude == 139.7514
@@ -86,7 +86,7 @@ class TestRealEstateTransaction:
             prefecture="大阪府",
             city="大阪市"
         )
-        
+
         assert transaction.transaction_price is None
         assert transaction.area is None
         assert transaction.building_year is None
@@ -103,7 +103,7 @@ class TestMunicipality:
             city_code="13101",
             city_name="千代田区"
         )
-        
+
         assert municipality.prefecture_code == "13"
         assert municipality.prefecture_name == "東京都"
         assert municipality.city_code == "13101"
@@ -118,7 +118,7 @@ class TestMunicipality:
             city_name="千代田区",
             city_name_en="Chiyoda City"
         )
-        
+
         assert municipality.city_name_en == "Chiyoda City"
 
 
@@ -128,7 +128,7 @@ class TestTileCoordinates:
     def test_valid_tile_coordinates(self):
         """有効なタイル座標の作成"""
         coords = TileCoordinates(z=10, x=500, y=300)
-        
+
         assert coords.z == 10
         assert coords.x == 500
         assert coords.y == 300
@@ -137,7 +137,7 @@ class TestTileCoordinates:
         """無効なズームレベルでバリデーションエラー"""
         with pytest.raises(ValidationError):
             TileCoordinates(z=0, x=0, y=0)  # z < 1
-        
+
         with pytest.raises(ValidationError):
             TileCoordinates(z=19, x=0, y=0)  # z > 18
 
@@ -145,7 +145,7 @@ class TestTileCoordinates:
         """負のタイル座標でバリデーションエラー"""
         with pytest.raises(ValidationError):
             TileCoordinates(z=10, x=-1, y=0)
-        
+
         with pytest.raises(ValidationError):
             TileCoordinates(z=10, x=0, y=-1)
 
@@ -162,7 +162,7 @@ class TestRealEstateSearchParams:
             to_date="20231231",
             property_type=PropertyType.RESIDENTIAL_LAND
         )
-        
+
         assert params.prefecture == "13"
         assert params.city == "13101"
         assert params.from_date == "20230101"
@@ -173,10 +173,10 @@ class TestRealEstateSearchParams:
         """無効な都道府県コードでバリデーションエラー"""
         with pytest.raises(ValidationError):
             RealEstateSearchParams(prefecture="00")  # < 1
-        
+
         with pytest.raises(ValidationError):
             RealEstateSearchParams(prefecture="48")  # > 47
-        
+
         with pytest.raises(ValidationError):
             RealEstateSearchParams(prefecture="XX")  # 非数値
 
@@ -184,17 +184,17 @@ class TestRealEstateSearchParams:
         """無効な日付形式でバリデーションエラー"""
         with pytest.raises(ValidationError):
             RealEstateSearchParams(from_date="2023-01-01")  # ハイフン形式
-        
+
         with pytest.raises(ValidationError):
             RealEstateSearchParams(to_date="230101")  # 6桁
-        
+
         with pytest.raises(ValidationError):
             RealEstateSearchParams(from_date="202301AA")  # 非数値
 
     def test_default_values(self):
         """デフォルト値の確認"""
         params = RealEstateSearchParams()
-        
+
         assert params.response_format == ResponseFormat.JSON
         assert params.prefecture is None
         assert params.city is None

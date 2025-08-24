@@ -1,0 +1,37 @@
+[
+  {
+    "key": "ctrl+shift+t",
+    "command": "workbench.action.tasks.runTask",
+    "args": "🧪 すべてのテストを実行"
+  },
+  {
+    "key": "ctrl+shift+r",
+    "command": "workbench.action.tasks.runTask", 
+    "args": "🔍 Ruff: 全体チェック"
+  },
+  {
+    "key": "ctrl+shift+f",
+    "command": "workbench.action.tasks.runTask",
+    "args": "🔧 Ruff: 自動修正実行"
+  },
+  {
+    "key": "ctrl+shift+u",
+    "command": "workbench.action.tasks.runTask",
+    "args": "🧪 現在のファイルをテスト"
+  },
+  {
+    "key": "ctrl+shift+y",
+    "command": "workbench.action.tasks.runTask",
+    "args": "🏗️ MyPy: 型チェック実行"
+  },
+  {
+    "key": "ctrl+shift+c",
+    "command": "workbench.action.tasks.runTask",
+    "args": "🧪 カバレッジ付きテスト実行"
+  },
+  {
+    "key": "ctrl+shift+m",
+    "command": "workbench.action.tasks.runTask",
+    "args": "🚀 MCPサーバー起動 (HTTP)"
+  }
+]

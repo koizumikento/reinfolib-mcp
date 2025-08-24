@@ -3,8 +3,8 @@ CLIのテスト
 """
 
 import json
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
 from click.testing import CliRunner
 
 from reinfolib_mcp.cli import main
@@ -21,7 +21,7 @@ class TestCLIMain:
     def test_cli_help(self):
         """ヘルプ表示のテスト"""
         result = self.runner.invoke(main, ['--help'])
-        
+
         assert result.exit_code == 0
         assert "不動産情報ライブラリMCPツール" in result.output
         assert "国土交通省の不動産情報ライブラリAPI" in result.output
@@ -29,7 +29,7 @@ class TestCLIMain:
     def test_cli_version(self):
         """バージョン表示のテスト"""
         result = self.runner.invoke(main, ['--version'])
-        
+
         assert result.exit_code == 0
         assert "0.1.0" in result.output
 
@@ -37,7 +37,7 @@ class TestCLIMain:
     def test_cli_default_mcp_server(self, mock_run_server):
         """デフォルトでMCPサーバー起動"""
         result = self.runner.invoke(main, ['--api-key', 'test_key'])
-        
+
         assert result.exit_code == 0
         mock_run_server.assert_called_once_with(
             api_key='test_key',
@@ -55,7 +55,7 @@ class TestCLIMain:
             '--host', '0.0.0.0',
             '--port', '9000'
         ])
-        
+
         assert result.exit_code == 0
         mock_run_server.assert_called_once_with(
             api_key='test_key',
@@ -69,7 +69,7 @@ class TestCLIMain:
     def test_cli_env_api_key(self, mock_run_server):
         """環境変数からAPIキーを取得"""
         result = self.runner.invoke(main, [])
-        
+
         assert result.exit_code == 0
         mock_run_server.assert_called_once_with(
             api_key='env_key',
@@ -83,7 +83,7 @@ class TestCLIMain:
     def test_cli_no_api_key_non_interactive(self, mock_isatty):
         """非対話モードでAPIキー未設定の場合のエラー"""
         result = self.runner.invoke(main, [])
-        
+
         assert result.exit_code == 1
         assert "APIキーが設定されていません" in result.output
 
@@ -112,7 +112,7 @@ class TestCLISearchCommand:
                     "transaction_period": "2023年第1四半期"
                 },
                 {
-                    "prefecture": "東京都", 
+                    "prefecture": "東京都",
                     "city": "中央区",
                     "transaction_price": 60000000,
                     "area": 120.0,
@@ -163,7 +163,7 @@ class TestCLISearchCommand:
         ])
 
         assert result.exit_code == 0
-        
+
         # JSON出力の確認 - 複数行JSONを処理
         output_lines = result.output.strip().split('\n')
         json_start_idx = None
@@ -171,11 +171,11 @@ class TestCLISearchCommand:
             if line.startswith('{'):
                 json_start_idx = i
                 break
-        
+
         assert json_start_idx is not None, "JSON output not found"
         json_content = '\n'.join(output_lines[json_start_idx:])
         json_output = json.loads(json_content)
-        
+
         assert json_output is not None
         assert json_output["total_count"] == 1
 
@@ -253,7 +253,7 @@ class TestCLIMunicipalitiesCommand:
             ),
             MagicMock(
                 prefecture_name="東京都",
-                city_code="13102", 
+                city_code="13102",
                 city_name="中央区",
                 city_name_en="Chuo City"
             )
@@ -296,7 +296,7 @@ class TestCLIMunicipalitiesCommand:
         ])
 
         assert result.exit_code == 0
-        
+
         # JSON出力の確認 - 複数行JSONを処理
         output_lines = result.output.strip().split('\n')
         json_start_idx = None
@@ -304,7 +304,7 @@ class TestCLIMunicipalitiesCommand:
             if line.startswith('{'):
                 json_start_idx = i
                 break
-        
+
         assert json_start_idx is not None, "JSON output not found"
         json_content = '\n'.join(output_lines[json_start_idx:])
         json_output = json.loads(json_content)
@@ -322,12 +322,12 @@ class TestCLILocationCommand:
     def test_location_command_success(self, mock_client_class):
         """位置情報コマンドの成功テスト"""
         mock_client = AsyncMock()
-        
+
         # 各データタイプのモックレスポンス
         mock_client.get_land_price_points.return_value = {"features": [{"properties": {"price": 500000}}]}
         mock_client.get_urban_planning_area.return_value = {"features": []}
         mock_client.get_land_use_zones.return_value = {"features": []}
-        
+
         mock_client_class.return_value.__aenter__.return_value = mock_client
         mock_client_class.return_value.__aexit__.return_value = None
 
