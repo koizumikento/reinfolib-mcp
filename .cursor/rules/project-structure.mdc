@@ -1,0 +1,50 @@
+---
+alwaysApply: true
+description: 国土交通省不動産情報ライブラリAPIを使用したMCPサーバーとPythonライブラリプロジェクトの構造ガイド
+---
+
+# 不動産情報ライブラリMCPプロジェクト構造
+
+このプロジェクトは、国土交通省の不動産情報ライブラリAPIを使用したMCPサーバーとPythonライブラリを提供します。
+
+## プロジェクト構造
+
+```
+reinfolib-mcp/
+├── pyproject.toml          # uvベースのプロジェクト設定
+├── uv.lock                 # 依存関係のロックファイル
+├── README.md               # プロジェクトの説明
+├── src/
+│   └── reinfolib_mcp/
+│       ├── __init__.py
+│       ├── client.py       # API クライアント
+│       ├── models.py       # データモデル
+│       ├── exceptions.py   # カスタム例外
+│       └── mcp_server.py   # MCPサーバー実装
+├── tests/
+│   ├── __init__.py
+│   ├── test_client.py
+│   ├── test_models.py
+│   └── test_mcp_server.py
+└── examples/
+    ├── basic_usage.py
+    └── mcp_client_example.py
+```
+
+## 重要な方針
+
+1. **開発環境**: uvを使用した現代的なPython環境構築
+2. **API仕様**: [不動産情報ライブラリAPI](https://www.reinfolib.mlit.go.jp/help/apiManual/)に準拠
+3. **出力形式**: JSON・GeoJSON・バイナリベクトルタイルに対応
+4. **API数**: 30種類のAPIエンドポイントをサポート
+5. **認証**: APIキーベースの認証
+6. **言語**: 日本語（一部英語対応）のデータを扱う
+
+## 主要APIカテゴリ
+
+- 不動産価格（取引価格・成約価格）情報
+- 地価公示・地価調査
+- 都市計画決定GISデータ
+- 国土数値情報（学校、医療機関、福祉施設等）
+- 災害リスク情報
+- 交通インフラ情報

@@ -1,0 +1,84 @@
+---
+globs: *.py
+description: 不動産情報ライブラリAPI開発に関するPythonコーディング規則
+---
+
+# 不動産情報ライブラリAPI開発規則
+
+## APIクライアント開発ガイドライン
+
+### 1. HTTPSリクエスト処理
+
+- 全てのAPIリクエストはHTTPSプロトコルを使用
+- APIキーはHTTPヘッダー `Ocp-Apim-Subscription-Key` で送信
+- リクエストタイムアウトとリトライ機能を実装
+
+### 2. レスポンス形式対応
+
+```python
+# サポートする出力形式
+SUPPORTED_FORMATS = {
+    'json': 'application/json',
+    'geojson': 'application/geo+json', 
+    'pbf': 'application/x-protobuf'  # バイナリベクトルタイル
+}
+```
+
+### 3. エラーハンドリング
+
+- APIキー未設定エラー
+- レート制限エラー
+- データ形式エラー
+- ネットワークエラー
+
+### 4. データモデル定義
+
+- Pydanticを使用したタイプセーフなデータモデル
+- GeoJSONオブジェクトの適切な型定義
+- 日本語フィールド名の英語マッピング
+
+### 5. APIクライアントラッパー設計
+
+参照: [client-library.mdc](mdc:.cursor/rules/client-library.mdc)
+
+```python
+# ラッパークラスを使用した設計
+from reinfolib_mcp import ReinfiolibClient
+
+# APIキー直接指定
+client = ReinfiolibClient(api_key="your_api_key")
+
+# 環境変数から自動取得
+client = ReinfiolibClient()  # REINFOLIB_API_KEY環境変数を使用
+```
+
+### 6. API URL パターン
+
+```python
+BASE_URL = "https://www.reinfolib.mlit.go.jp/ex-api/external"
+
+# APIエンドポイント例
+ENDPOINTS = {
+    "real_estate_price": "/XIT001",  # 不動産価格情報
+    "municipalities": "/XIT002",      # 市区町村一覧
+    "appraisal_info": "/XIT003",     # 鑑定評価書情報
+    # ... 他のエンドポイント
+}
+```
+
+### 7. 地理空間データ処理
+
+- GeoJSONオブジェクトの適切な処理
+- 座標系の変換対応（JGD2011等）
+- バイナリベクトルタイルのデコード
+
+### 8. ユニットテスト
+
+- モックレスポンスを使用したテスト
+- 全APIエンドポイントのテストカバレッジ
+- エラーケースのテスト
+
+### 9. 非同期処理
+
+- asyncio/aiohttpを使用した非同期APIクライアント
+- 複数APIの並行呼び出し対応

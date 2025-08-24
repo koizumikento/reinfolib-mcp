@@ -1,0 +1,375 @@
+---
+globs: *client*.py,*api*.py
+description: 不動産情報ライブラリAPIクライアントラッパーの設計ガイドライン
+---
+
+# 不動産情報ライブラリAPIクライアント設計ガイド
+
+## APIキー管理パターン
+
+### 1. 基本的なクライアント設計
+
+```python
+import os
+from typing import Optional, Dict, Any, Union
+import httpx
+from pydantic import BaseModel
+
+class ReinfiolibClient:
+    """不動産情報ライブラリAPIクライアント"""
+    
+    def __init__(
+        self, 
+        api_key: Optional[str] = None,
+        base_url: str = "https://www.reinfolib.mlit.go.jp/ex-api/external",
+        timeout: int = 30
+    ):
+        """
+        クライアントを初期化します。
+        
+        Args:
+            api_key: APIキー（Noneの場合は環境変数REINFOLIB_API_KEYを使用）
+            base_url: APIベースURL
+            timeout: リクエストタイムアウト（秒）
+        """
+        self.api_key = api_key or os.getenv("REINFOLIB_API_KEY")
+        if not self.api_key:
+            raise ValueError("APIキーが設定されていません。引数で指定するか、環境変数REINFOLIB_API_KEYを設定してください。")
+        
+        self.base_url = base_url
+        self.timeout = timeout
+        self._client = httpx.AsyncClient(
+            headers={"Ocp-Apim-Subscription-Key": self.api_key},
+            timeout=timeout
+        )
+```
+
+### 2. 環境変数による設定
+
+```python
+# .env ファイル例
+REINFOLIB_API_KEY=your_api_key_here
+
+# 使用例
+from dotenv import load_dotenv
+load_dotenv()
+
+# 環境変数から自動取得
+client = ReinfiolibClient()
+
+# 直接指定
+client = ReinfiolibClient(api_key="your_api_key")
+```
+
+## レスポンスモデル定義
+
+### 基本レスポンスモデル
+
+```python
+from pydantic import BaseModel, Field
+from typing import List, Optional, Any
+from datetime import datetime
+
+class RealEstateTransaction(BaseModel):
+    """不動産取引情報モデル"""
+    prefecture: str = Field(description="都道府県名")
+    city: str = Field(description="市区町村名")
+    district: Optional[str] = Field(None, description="地区名")
+    price: Optional[int] = Field(None, description="取引価格（円）")
+    area: Optional[float] = Field(None, description="面積（㎡）")
+    unit_price: Optional[int] = Field(None, description="㎡単価（円）")
+    transaction_period: Optional[str] = Field(None, description="取引時期")
+    building_year: Optional[str] = Field(None, description="建築年")
+    structure: Optional[str] = Field(None, description="構造")
+    usage: Optional[str] = Field(None, description="用途")
+
+class RealEstateSearchResult(BaseModel):
+    """不動産検索結果モデル"""
+    data: List[RealEstateTransaction]
+    total_count: int
+    page: int
+    per_page: int
+
+class LandPricePoint(BaseModel):
+    """地価公示・調査ポイントモデル"""
+    point_name: str = Field(description="地点名")
+    address: str = Field(description="住所")
+    price_per_sqm: int = Field(description="㎡単価（円）")
+    year: int = Field(description="調査年")
+    longitude: float = Field(description="経度")
+    latitude: float = Field(description="緯度")
+```
+
+## APIメソッド設計パターン
+
+### 不動産価格情報取得
+
+```python
+class ReinfiolibClient:
+    async def search_real_estate_transactions(
+        self,
+        prefecture: Optional[str] = None,
+        city: Optional[str] = None,
+        from_date: Optional[str] = None,
+        to_date: Optional[str] = None,
+        property_type: Optional[str] = None,
+        response_format: str = "json"
+    ) -> RealEstateSearchResult:
+        """
+        不動産取引価格情報を検索します。
+        
+        Args:
+            prefecture: 都道府県コード（01-47）
+            city: 市区町村コード
+            from_date: 取引時期開始（YYYYMMDD）
+            to_date: 取引時期終了（YYYYMMDD）
+            property_type: 不動産種別（1:宅地、2:中古マンション等）
+            response_format: レスポンス形式（json|geojson）
+            
+        Returns:
+            RealEstateSearchResult: 検索結果
+        """
+        params = {
+            "response_format": response_format,
+            **{k: v for k, v in {
+                "prefecture": prefecture,
+                "city": city,
+                "from": from_date,
+                "to": to_date,
+                "type": property_type
+            }.items() if v is not None}
+        }
+        
+        response = await self._client.get("/XIT001", params=params)
+        response.raise_for_status()
+        
+        data = response.json()
+        return RealEstateSearchResult(**data)
+```
+
+### 市区町村一覧取得
+
+```python
+async def get_municipalities(
+    self, 
+    prefecture: str, 
+    lang: str = "ja"
+) -> List[Dict[str, Any]]:
+    """
+    指定都道府県の市区町村一覧を取得します。
+    
+    Args:
+        prefecture: 都道府県コード（01-47）
+        lang: 言語（ja|en）
+        
+    Returns:
+        List[Dict]: 市区町村情報リスト
+    """
+    params = {
+        "response_format": "json",
+        "prefecture": prefecture,
+        "lang": lang
+    }
+    
+    response = await self._client.get("/XIT002", params=params)
+    response.raise_for_status()
+    
+    return response.json()
+```
+
+### 地価情報取得
+
+```python
+async def get_land_price_points(
+    self,
+    z: int,
+    x: int, 
+    y: int,
+    response_format: str = "geojson"
+) -> Dict[str, Any]:
+    """
+    地価公示・地価調査のポイント情報を取得します。
+    
+    Args:
+        z: ズームレベル
+        x: タイルX座標
+        y: タイルY座標
+        response_format: レスポンス形式（geojson|pbf）
+        
+    Returns:
+        Dict: 地価ポイント情報
+    """
+    params = {
+        "response_format": response_format,
+        "z": z,
+        "x": x,
+        "y": y
+    }
+    
+    response = await self._client.get("/XIT005", params=params)
+    response.raise_for_status()
+    
+    return response.json()
+```
+
+## エラーハンドリング
+
+### カスタム例外定義
+
+```python
+class ReinfiolibAPIError(Exception):
+    """不動産情報ライブラリAPI基底例外"""
+    def __init__(self, message: str, status_code: Optional[int] = None):
+        self.message = message
+        self.status_code = status_code
+        super().__init__(message)
+
+class AuthenticationError(ReinfiolibAPIError):
+    """認証エラー"""
+    pass
+
+class InvalidParameterError(ReinfiolibAPIError):
+    """パラメータエラー"""
+    pass
+
+class RateLimitError(ReinfiolibAPIError):
+    """レート制限エラー"""
+    pass
+```
+
+### エラーハンドリング実装
+
+```python
+async def _handle_response(self, response: httpx.Response) -> Dict[str, Any]:
+    """レスポンスのエラーハンドリング"""
+    if response.status_code == 401:
+        raise AuthenticationError("APIキーが無効です")
+    elif response.status_code == 400:
+        raise InvalidParameterError("リクエストパラメータが不正です")
+    elif response.status_code == 429:
+        raise RateLimitError("レート制限に達しました")
+    elif response.status_code >= 400:
+        raise ReinfiolibAPIError(
+            f"APIエラー: {response.status_code}",
+            response.status_code
+        )
+    
+    return response.json()
+```
+
+## 同期・非同期対応
+
+### 同期版クライアント
+
+```python
+class SyncReinfiolibClient:
+    """同期版不動産情報ライブラリAPIクライアント"""
+    
+    def __init__(self, api_key: Optional[str] = None, **kwargs):
+        self.api_key = api_key or os.getenv("REINFOLIB_API_KEY")
+        if not self.api_key:
+            raise ValueError("APIキーが設定されていません")
+        
+        self._client = httpx.Client(
+            headers={"Ocp-Apim-Subscription-Key": self.api_key},
+            timeout=kwargs.get("timeout", 30)
+        )
+    
+    def search_real_estate_transactions(self, **kwargs) -> RealEstateSearchResult:
+        """同期版不動産取引検索"""
+        # 実装...
+        pass
+```
+
+## 使用例
+
+### 基本的な使用方法
+
+```python
+import asyncio
+from reinfolib_mcp import ReinfiolibClient
+
+async def main():
+    # APIキーを直接指定
+    client = ReinfiolibClient(api_key="your_api_key")
+    
+    # または環境変数から取得
+    # client = ReinfiolibClient()
+    
+    try:
+        # 不動産取引価格検索
+        result = await client.search_real_estate_transactions(
+            prefecture="13",  # 東京都
+            from_date="20230101",
+            to_date="20231231"
+        )
+        
+        print(f"検索結果: {result.total_count}件")
+        for transaction in result.data[:5]:
+            print(f"{transaction.city}: {transaction.price}円")
+        
+        # 市区町村一覧取得
+        municipalities = await client.get_municipalities("13")
+        print(f"東京都の市区町村数: {len(municipalities)}")
+        
+    except ReinfiolibAPIError as e:
+        print(f"APIエラー: {e.message}")
+    
+    finally:
+        await client.close()
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+### コンテキストマネージャー対応
+
+```python
+class ReinfiolibClient:
+    async def __aenter__(self):
+        return self
+    
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self.close()
+    
+    async def close(self):
+        """クライアントを閉じます"""
+        await self._client.aclose()
+
+# 使用例
+async def main():
+    async with ReinfiolibClient() as client:
+        result = await client.search_real_estate_transactions(
+            prefecture="13"
+        )
+        print(result.total_count)
+```
+
+## テスト設計
+
+### モックテスト例
+
+```python
+import pytest
+from unittest.mock import AsyncMock, patch
+from reinfolib_mcp import ReinfiolibClient
+
+@pytest.mark.asyncio
+async def test_search_real_estate_transactions():
+    with patch('httpx.AsyncClient') as mock_client:
+        mock_response = AsyncMock()
+        mock_response.json.return_value = {
+            "data": [],
+            "total_count": 0,
+            "page": 1,
+            "per_page": 100
+        }
+        mock_response.raise_for_status.return_value = None
+        mock_client.return_value.get.return_value = mock_response
+        
+        client = ReinfiolibClient(api_key="test_key")
+        result = await client.search_real_estate_transactions(prefecture="13")
+        
+        assert result.total_count == 0
+        assert len(result.data) == 0
+```

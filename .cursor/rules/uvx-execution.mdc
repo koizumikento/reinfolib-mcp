@@ -1,0 +1,316 @@
+---
+description: uvx実行パターンとCLIツール化のガイドライン
+---
+
+# uvx実行によるMCPサーバー起動ガイドライン
+
+## uvxとMCPサーバー
+
+uvxは、MCPサーバーをインストールなしで直接起動するための主要な手段です。一時的な仮想環境でMCPサーバーを実行し、Claude、Cursor等のMCPクライアントから接続できます。
+
+## プロジェクト設定
+
+### エントリーポイント定義
+
+```toml
+# pyproject.toml
+[project.scripts]
+reinfolib-mcp = "reinfolib_mcp.cli:main"           # メインCLI
+reinfolib-server = "reinfolib_mcp.mcp_server:run_server"  # MCPサーバー起動
+reinfolib-client = "reinfolib_mcp.client:cli_main"        # APIクライアント
+```
+
+## 実行パターン
+
+### 1. MCPサーバーとしてのuvx実行
+
+```bash
+# MCPサーバーを直接起動（デフォルト: stdio）
+uvx reinfolib-mcp
+
+# 明示的にstdioトランスポートで起動
+uvx reinfolib-mcp --transport stdio
+
+# HTTPトランスポートで起動（開発・テスト用）
+uvx reinfolib-mcp --transport http --port 8000
+
+# SSEトランスポートで起動
+uvx reinfolib-mcp --transport sse --port 8080
+```
+
+### 2. 特定バージョンでの実行
+
+```bash
+# 特定バージョンを指定
+uvx reinfolib-mcp@1.0.0 search --prefecture 13
+uvx reinfolib-mcp@latest server --transport http
+
+# 開発版での実行（ローカル）
+uvx --from . reinfolib-mcp --help
+uvx --from . reinfolib-server --transport stdio
+```
+
+### 3. MCP設定ファイルでの定義
+
+```json
+// Claude Desktop config.json
+{
+  "mcpServers": {
+    "reinfolib": {
+      "command": "uvx",
+      "args": ["reinfolib-mcp"],
+      "env": {
+        "REINFOLIB_API_KEY": "your_api_key_here"
+      }
+    }
+  }
+}
+
+// 開発版使用時
+{
+  "mcpServers": {
+    "reinfolib-dev": {
+      "command": "uvx",
+      "args": ["--from", "/path/to/reinfolib-mcp", "reinfolib-mcp"],
+      "env": {
+        "REINFOLIB_API_KEY": "your_api_key_here"
+      }
+    }
+  }
+}
+```
+
+### 4. 環境変数との組み合わせ
+
+```bash
+# APIキーを環境変数で設定
+export REINFOLIB_API_KEY="your_api_key"
+uvx reinfolib-mcp search --prefecture 13
+
+# 一時的にAPIキーを設定
+REINFOLIB_API_KEY="your_key" uvx reinfolib-mcp search --prefecture 13
+```
+
+## CLI設計パターン
+
+### MCPサーバー起動スクリプト
+
+```python
+# src/reinfolib_mcp/cli.py
+import click
+import os
+from fastmcp import FastMCP
+
+@click.command()
+@click.option('--transport', default='stdio', 
+              type=click.Choice(['stdio', 'http', 'sse']),
+              help='MCPトランスポート方式')
+@click.option('--host', default='localhost', help='HTTPホスト名')
+@click.option('--port', default=8000, type=int, help='HTTPポート番号')
+@click.option('--api-key', envvar='REINFOLIB_API_KEY', help='APIキー')
+def main(transport: str, host: str, port: int, api_key: str):
+    """不動産情報ライブラリMCPサーバー"""
+    if not api_key:
+        click.echo("エラー: APIキーが設定されていません", err=True)
+        click.echo("環境変数REINFOLIB_API_KEYを設定してください", err=True)
+        raise click.Abort()
+    
+    # FastMCPサーバーの初期化
+    mcp = FastMCP(
+        name="不動産情報ライブラリMCP",
+        description="国土交通省不動産情報ライブラリAPIアクセスツール"
+    )
+    
+    # ツールの登録
+    from .tools import register_all_tools
+    register_all_tools(mcp, api_key)
+    
+    # サーバー起動
+    if transport == "stdio":
+        mcp.run(transport="stdio")
+    elif transport == "http":
+        mcp.run(transport="http", host=host, port=port)
+    elif transport == "sse":
+        mcp.run(transport="sse", host=host, port=port)
+
+if __name__ == '__main__':
+    main()
+
+```
+
+### MCPツール定義例
+
+```python
+# src/reinfolib_mcp/tools.py
+from fastmcp import FastMCP
+from .client import ReinfiolibClient
+
+def register_all_tools(mcp: FastMCP, api_key: str):
+    """全てのMCPツールを登録"""
+    client = ReinfiolibClient(api_key=api_key)
+    
+    @mcp.tool
+    async def search_real_estate_transactions(
+        prefecture: str,
+        city: str = None,
+        from_date: str = None,
+        to_date: str = None
+    ) -> dict:
+        """不動産取引価格情報を検索します。
+        
+        Args:
+            prefecture: 都道府県コード（例: 13=東京都）
+            city: 市区町村コード（オプション）
+            from_date: 取引時期開始（YYYYMMDD形式）
+            to_date: 取引時期終了（YYYYMMDD形式）
+        """
+        result = await client.search_real_estate_transactions(
+            prefecture=prefecture,
+            city=city,
+            from_date=from_date,
+            to_date=to_date
+        )
+        return {
+            "total_count": result.total_count,
+            "data": [item.dict() for item in result.data[:10]]  # 最初の10件
+        }
+    
+    @mcp.tool
+    async def get_municipalities(prefecture: str, lang: str = "ja") -> list:
+        """指定都道府県の市区町村一覧を取得します。
+        
+        Args:
+            prefecture: 都道府県コード（01-47）
+            lang: 言語（ja=日本語、en=英語）
+        """
+        return await client.get_municipalities(prefecture, lang)
+    
+    @mcp.tool
+    async def get_land_price_points(z: int, x: int, y: int) -> dict:
+        """地価公示・調査のポイント情報を取得します。
+        
+        Args:
+            z: ズームレベル
+            x: タイルX座標
+            y: タイルY座標
+        """
+        return await client.get_land_price_points(z, x, y)
+```
+
+```
+```
+
+## 開発・テスト時の使用方法
+
+### 開発版のMCPサーバーテスト
+
+```bash
+# ローカル開発版でMCPサーバー起動
+cd /path/to/reinfolib-mcp
+export REINFOLIB_API_KEY="your_api_key"
+uvx --from . reinfolib-mcp
+
+# HTTPモードでテスト
+uvx --from . reinfolib-mcp --transport http --port 3000
+
+# 別ターミナルからMCPクライアントでテスト
+curl -X POST http://localhost:3000/mcp \
+  -H "Content-Type: application/json" \
+  -d '{"method": "tools/list"}'
+```
+
+### CI/CDでのMCPサーバーテスト
+
+```yaml
+# .github/workflows/test-mcp.yml
+name: Test MCP Server
+on: [push, pull_request]
+
+jobs:
+  test-mcp-server:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v2
+      
+      - name: Test MCP server startup
+        run: |
+          # MCPサーバーをバックグラウンドで起動
+          uvx --from . reinfolib-mcp --transport http --port 3000 &
+          SERVER_PID=$!
+          
+          # サーバーの起動を待つ
+          sleep 5
+          
+          # MCPプロトコルのテスト
+          curl -X POST http://localhost:3000/mcp \
+            -H "Content-Type: application/json" \
+            -d '{"method": "tools/list"}' \
+            --max-time 10
+          
+          # サーバーを停止
+          kill $SERVER_PID
+        env:
+          REINFOLIB_API_KEY: ${{ secrets.REINFOLIB_API_KEY }}
+```
+
+## パッケージング設定
+
+### setup.py互換性（オプション）
+
+```python
+# setup.py (legacy support)
+from setuptools import setup, find_packages
+
+setup(
+    name="reinfolib-mcp",
+    packages=find_packages(where="src"),
+    package_dir={"": "src"},
+    entry_points={
+        'console_scripts': [
+            'reinfolib-mcp=reinfolib_mcp.cli:main',
+            'reinfolib-server=reinfolib_mcp.mcp_server:run_server',
+        ],
+    },
+)
+```
+
+## ユーザー向けドキュメント例
+
+### README.md での使用例
+
+```markdown
+## MCPサーバーとしての使用（uvx）
+
+### Claude Desktopでの設定
+
+config.jsonに以下を追加:
+
+```json
+{
+  "mcpServers": {
+    "reinfolib": {
+      "command": "uvx",
+      "args": ["reinfolib-mcp"],
+      "env": {
+        "REINFOLIB_API_KEY": "your_api_key_here"
+      }
+    }
+  }
+}
+```
+
+### 手動でのMCPサーバー起動
+
+```bash
+export REINFOLIB_API_KEY="your_api_key"
+uvx reinfolib-mcp  # stdio transport (default)
+```
+
+## MCPサーバーとしてのuvxの利点
+
+1. **インストール不要**: Claude等のMCPクライアントから直接利用
+2. **設定簡単**: config.jsonでの簡単な設定
+3. **バージョン管理**: 特定バージョンのMCPサーバーを指定可能
+4. **環境分離**: 各MCPサーバーが独立した環境で実行
+5. **開発効率**: ローカル開発版を即座にMCPクライアントでテスト

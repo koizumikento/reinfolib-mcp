@@ -1,0 +1,221 @@
+---
+globs: *.py
+description: FastMCPライブラリの使用方法とベストプラクティス
+---
+
+# FastMCPライブラリ使用ガイド
+
+## FastMCPの基本構造
+
+FastMCPは、Model Context Protocol (MCP) サーバーとクライアントを構築するためのPythonフレームワークです。
+
+### 基本的なサーバー設定
+
+```python
+from fastmcp import FastMCP
+
+mcp = FastMCP("不動産情報ライブラリMCPサーバー")
+
+@mcp.tool
+def greet(name: str) -> str:
+    """指定された名前で挨拶を返します。"""
+    return f"こんにちは、{name}さん！"
+
+if __name__ == "__main__":
+    mcp.run(transport="stdio")  # stdio, http, sse をサポート
+```
+
+## ツール定義パターン
+
+### 1. 基本的なツール定義
+
+```python
+@mcp.tool
+def add(a: int, b: int) -> int:
+    """2つの整数を加算します。"""
+    return a + b
+```
+
+### 2. カスタム名とメタデータ付きツール
+
+```python
+@mcp.tool(
+    name="find_products",
+    description="製品カタログを検索します",
+    tags={"catalog", "search"},
+    meta={"version": "1.2", "author": "team"}
+)
+def search_products(query: str, category: str | None = None) -> list[dict]:
+    """製品検索の実装"""
+    return [{"id": 1, "name": "商品名"}]
+```
+
+### 3. ツールアノテーション
+
+```python
+from mcp.types import ToolAnnotations
+
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="計算ツール",
+        readOnlyHint=True,      # 読み取り専用
+        destructiveHint=False,  # 破壊的でない
+        idempotentHint=True,    # 冪等性あり
+        openWorldHint=False     # 閉じた世界
+    )
+)
+def calculate_sum(a: float, b: float) -> float:
+    """数値の合計を計算します。"""
+    return a + b
+```
+
+## リソース定義
+
+```python
+@mcp.resource("system://status")
+def get_system_status() -> dict:
+    """システムステータスを返します。"""
+    return {"status": "正常稼働中"}
+
+@mcp.resource("weather://{city}")
+def get_weather(city: str) -> str:
+    """指定都市の天気を取得します。"""
+    return f"{city}の天気情報"
+```
+
+## プロンプト定義
+
+```python
+@mcp.prompt
+def ask_about_topic(topic: str) -> str:
+    """トピックについて説明を求めるプロンプトを生成します。"""
+    return f"'{topic}'について詳しく説明してください。"
+
+@mcp.prompt(
+    name="analyze_request",
+    description="データ分析リクエストを生成",
+    tags={"analysis", "data"}
+)
+def data_analysis_prompt(data_uri: str, analysis_type: str = "summary") -> str:
+    """データ分析のプロンプトを生成します。"""
+    return f"{data_uri}のデータに対して{analysis_type}分析を実行してください。"
+```
+
+## コンテキストの使用
+
+```python
+from fastmcp import Context
+
+@mcp.tool
+async def process_data(uri: str, ctx: Context) -> str:
+    """コンテキストを使用したデータ処理。"""
+    # ログ出力
+    await ctx.info(f"処理開始: {uri}")
+    await ctx.debug("デバッグ情報")
+    
+    # プログレス報告
+    await ctx.report_progress(50, 100, "処理中...")
+    
+    # リソース読み取り
+    data = await ctx.read_resource(uri)
+    
+    # 状態管理
+    ctx.set_state("processing", True)
+    
+    return f"処理完了: {uri}"
+```
+
+## エラーハンドリング
+
+```python
+@mcp.tool
+def safe_operation(data: str) -> dict:
+    """安全な操作の実装例。"""
+    try:
+        result = perform_operation(data)
+        return {"status": "success", "data": result}
+    except ValueError as e:
+        raise ValueError(f"データ形式エラー: {e}")
+    except Exception as e:
+        raise RuntimeError(f"予期しないエラー: {e}")
+```
+
+## ツールの有効/無効制御
+
+```python
+@mcp.tool(enabled=False)
+def maintenance_tool():
+    """メンテナンス中のツール。"""
+    return "このツールは無効です"
+
+# 動的制御
+@mcp.tool
+def dynamic_tool():
+    return "動的ツール"
+
+# 実行時制御
+dynamic_tool.disable()  # 無効化
+dynamic_tool.enable()   # 有効化
+```
+
+## クラスメソッドとの統合
+
+### 推奨パターン
+
+```python
+class APIClient:
+    def __init__(self, api_key: str):
+        self.api_key = api_key
+    
+    def search_data(self, query: str) -> dict:
+        """データ検索メソッド。"""
+        return {"query": query, "results": []}
+
+# インスタンス作成後に登録
+client = APIClient("api_key")
+mcp.tool(client.search_data)
+```
+
+### 避けるべきパターン
+
+```python
+class BadExample:
+    @mcp.tool  # ❌ 直接デコレートしない
+    def method(self, x: int) -> int:
+        return x * 2
+```
+
+## 非同期対応
+
+```python
+import asyncio
+
+@mcp.tool
+async def async_operation(data: str) -> dict:
+    """非同期操作の例。"""
+    await asyncio.sleep(1)  # 非同期処理のシミュレート
+    return {"processed": data}
+```
+
+## タグベースフィルタリング
+
+```python
+@mcp.tool(tags={"real-estate", "price"})
+def get_price_info():
+    """不動産価格情報取得（価格タグ付き）"""
+    pass
+
+@mcp.tool(tags={"disaster", "risk"})
+def get_disaster_risk():
+    """災害リスク情報取得（災害タグ付き）"""
+    pass
+```
+
+## ベストプラクティス
+
+1. **型ヒントの活用**: 全ての関数に詳細な型ヒントを記載
+2. **日本語ドキュメント**: 関数の説明は日本語で記載
+3. **適切なタグ付け**: 関連するツールをタグでグループ化
+4. **エラーハンドリング**: 適切な例外処理を実装
+5. **コンテキストの活用**: ログ出力とプログレス報告を実装
+6. **非同期対応**: I/O操作は非同期で実装

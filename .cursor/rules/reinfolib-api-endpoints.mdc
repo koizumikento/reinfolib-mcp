@@ -1,0 +1,202 @@
+---
+description: 不動産情報ライブラリAPI全30エンドポイントの詳細仕様
+---
+
+# 不動産情報ライブラリAPI エンドポイント仕様
+
+## 基本設定
+
+```python
+BASE_URL = "https://www.reinfolib.mlit.go.jp/ex-api/external"
+HEADERS = {"Ocp-Apim-Subscription-Key": "YOUR_API_KEY"}
+```
+
+## API エンドポイント一覧
+
+### 1. 不動産価格情報系API
+
+#### XIT001 - 不動産価格（取引価格・成約価格）情報取得API
+```python
+endpoint = "/XIT001"
+parameters = {
+    "response_format": "json|geojson",  # 出力形式
+    "prefecture": "13",                 # 都道府県コード（01-47）
+    "city": "13101",                   # 市区町村コード
+    "from": "20230101",                # 取引時期（開始）
+    "to": "20231231",                  # 取引時期（終了）
+    "type": "1",                       # 不動産種別（1:宅地、2:中古マンション等）
+}
+```
+
+#### XIT003 - 鑑定評価書情報API
+```python
+endpoint = "/XIT003"
+parameters = {
+    "response_format": "json",
+    "prefecture": "13",
+    "city": "13101",
+}
+```
+
+#### XIT004 - 不動産価格（取引価格・成約価格）情報のポイント (点) API
+```python
+endpoint = "/XIT004"
+parameters = {
+    "response_format": "geojson|pbf",
+    "z": 11,                           # ズームレベル
+    "x": 1818,                         # タイルX座標
+    "y": 806,                          # タイルY座標
+}
+```
+
+### 2. 地価情報系API
+
+#### XIT005 - 地価公示・地価調査のポイント（点）API
+```python
+endpoint = "/XIT005"
+parameters = {
+    "response_format": "geojson|pbf",
+    "z": 11,
+    "x": 1818,
+    "y": 806,
+}
+```
+
+### 3. 都市計画系API
+
+#### XKT001 - 都市計画決定GISデータ（都市計画区域/区域区分）API
+```python
+endpoint = "/XKT001"
+parameters = {
+    "response_format": "geojson|pbf",
+    "z": 11,
+    "x": 1818,
+    "y": 806,
+}
+```
+
+#### XKT002 - 都市計画決定GISデータ（用途地域）API
+```python
+endpoint = "/XKT002"
+parameters = {
+    "response_format": "geojson|pbf",
+    "z": 11,
+    "x": 1818,
+    "y": 806,
+}
+```
+
+#### XKT003 - 都市計画決定GISデータ（立地適正化計画）API
+#### XKT004 - 都市計画決定GISデータ（防火・準防火地域）API
+#### XKT005 - 都市計画決定GISデータ（地区計画）API
+#### XKT006 - 都市計画決定GISデータ（高度利用地区）API
+
+### 4. 国土数値情報系API
+
+#### 教育施設
+- XKT007 - 国土数値情報（小学校区）API
+- XKT008 - 国土数値情報（中学校区）API
+- XKT009 - 国土数値情報（学校）API
+- XKT010 - 国土数値情報（保育園・幼稚園等）API
+- XKT022 - 国土数値情報（図書館）API
+
+#### 医療・福祉施設
+- XKT011 - 国土数値情報（医療機関）API
+- XKT012 - 国土数値情報（福祉施設）API
+
+#### 交通・インフラ
+- XKT020 - 国土数値情報（駅別乗降客数）API
+
+#### 人口・統計
+- XKT013 - 国土数値情報（将来推計人口250mメッシュ）API
+
+#### 公共・行政施設
+- XKT023 - 国土数値情報（市区町村役場及び集会施設等）API
+
+#### 災害・防災情報
+- XKT021 - 国土数値情報（災害危険区域）API
+- XKT025 - 国土数値情報（大規模盛土造成地マップ）API
+- XKT026 - 国土数値情報（地すべり防止地区）API
+- XKT027 - 国土数値情報（急傾斜地崩壊危険区域）API
+- XKT028 - 国土交通省都市局（地形区分に基づく液状化の発生傾向図）API
+
+#### 自然・環境
+- XKT024 - 国土数値情報（自然公園地域）API
+
+### 5. 補助API
+
+#### XIT002 - 都道府県内市区町村一覧取得API
+```python
+endpoint = "/XIT002"
+parameters = {
+    "response_format": "json",
+    "prefecture": "13",                # 都道府県コード
+    "lang": "ja|en",                  # 言語（日本語/英語）
+}
+```
+
+## 共通パラメータ
+
+### response_format
+- `json`: JSON形式
+- `geojson`: GeoJSON形式
+- `pbf`: バイナリベクトルタイル形式
+
+### 座標系
+- 日本測地系2011（JGD2011）
+- Web Mercator（EPSG:3857）
+
+### タイル座標
+- ズームレベル（z）: 1-18
+- X座標: 経度方向のタイル番号
+- Y座標: 緯度方向のタイル番号
+
+## レスポンス例
+
+### JSON形式
+```json
+{
+  "data": [
+    {
+      "prefecture": "東京都",
+      "city": "千代田区",
+      "price": 1000000,
+      "area": 100.5,
+      "transaction_date": "2023-01-15"
+    }
+  ],
+  "total_count": 100
+}
+```
+
+### GeoJSON形式
+```json
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [139.7514, 35.6851]
+      },
+      "properties": {
+        "name": "物件名",
+        "price": 1000000
+      }
+    }
+  ]
+}
+```
+
+## エラーレスポンス
+
+```json
+{
+  "error": {
+    "code": "INVALID_PARAMETER",
+    "message": "パラメータが不正です",
+    "details": "prefecture code must be between 01 and 47"
+  }
+}
+```

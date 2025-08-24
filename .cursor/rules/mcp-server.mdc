@@ -1,0 +1,70 @@
+---
+globs: *mcp*.py
+description: MCPサーバー実装に関するガイドライン
+---
+
+# MCPサーバー実装ガイドライン
+
+## MCPサーバー設計方針
+
+### 1. ツール定義
+
+不動産情報ライブラリAPIの主要機能をMCPツールとして提供：
+
+```python
+MCP_TOOLS = [
+    "reinfolib_search_real_estate",      # 不動産価格検索
+    "reinfolib_get_municipalities",      # 市区町村一覧取得  
+    "reinfolib_get_land_price",          # 地価公示・調査
+    "reinfolib_search_facilities",       # 周辺施設検索
+    "reinfolib_get_urban_planning",      # 都市計画情報
+    "reinfolib_get_disaster_risk",       # 災害リスク情報
+]
+```
+
+### 2. パラメータ検証
+
+- 必須パラメータのバリデーション
+- 地理座標の範囲チェック
+- 日付形式の検証
+
+### 3. レスポンス最適化
+
+- 大きなGeoJSONデータの適切な分割
+- バイナリデータの Base64 エンコーディング
+- エラーメッセージの日本語対応
+
+### 4. 設定管理
+
+```python
+@dataclass
+class ReinfliblibConfig:
+    api_key: str
+    base_url: str = "https://www.reinfolib.mlit.go.jp/ex-api/external"
+    timeout: int = 30
+    max_retries: int = 3
+```
+
+### 5. ログ出力
+
+- APIリクエスト/レスポンスのログ
+- エラー詳細のログ出力
+- パフォーマンス計測
+
+### 6. セキュリティ
+
+- APIキーの安全な管理
+- 入力パラメータのサニタイズ
+- レート制限の遵守
+
+### 7. MCPスキーマ定義
+
+- JSON Schema による厳密なパラメータ定義
+- 日本語説明文の提供
+- 使用例の記載
+
+### 8. エラー処理
+
+- MCP準拠のエラーレスポンス
+- APIエラーコードのMCPエラーへのマッピング
+- ユーザーフレンドリーなエラーメッセージ

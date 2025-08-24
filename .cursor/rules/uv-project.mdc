@@ -1,0 +1,165 @@
+---
+globs: pyproject.toml,uv.lock,*.py
+description: uvベースのPythonプロジェクト管理ガイドライン
+---
+
+# uvベースプロジェクト管理ガイドライン
+
+## プロジェクト設定
+
+### 1. pyproject.tomlの設定
+
+```toml
+[project]
+name = "reinfolib-mcp"
+version = "0.1.0"
+description = "国土交通省不動産情報ライブラリAPI用MCPサーバーとPythonライブラリ"
+authors = [
+    {name = "Author Name", email = "author@example.com"}
+]
+dependencies = [
+    "pydantic>=2.0.0",
+    "httpx>=0.25.0", 
+    "mcp>=1.0.0",
+    "geojson>=3.0.0",
+    "click>=8.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.0.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "mypy>=1.5.0",
+    "ruff>=0.1.0",
+]
+```
+
+### 2. 開発環境のセットアップ
+
+```bash
+# 仮想環境作成とアクティベート
+uv venv
+source .venv/bin/activate  # Linux/Mac
+# または
+.venv\Scripts\activate     # Windows
+
+# 依存関係インストール
+uv pip install -e ".[dev]"
+```
+
+### 3. コードフォーマット設定
+
+```toml
+[tool.black]
+line-length = 88
+target-version = ['py39']
+
+[tool.isort]
+profile = "black"
+line_length = 88
+
+[tool.ruff]
+line-length = 88
+select = ["E", "F", "W", "C90", "I", "N", "UP", "YTT", "S", "BLE", "FBT", "B", "A", "C4", "DTZ", "T10", "EM", "EXE", "FA", "ISC", "ICN", "G", "INP", "PIE", "T20", "PYI", "PT", "Q", "RSE", "RET", "SLF", "SIM", "TID", "TCH", "ARG", "PTH", "ERA", "PD", "PGH", "PL", "TRY", "FLY", "NPY", "AIR", "PERF", "FURB", "LOG", "RUF"]
+```
+
+### 4. テスト実行
+
+```bash
+# 全テスト実行
+uv run pytest
+
+# カバレッジ付きテスト
+uv run pytest --cov=src/reinfolib_mcp --cov-report=html
+
+# 型チェック
+uv run mypy src/reinfolib_mcp
+```
+
+### 5. パッケージビルド
+
+```bash
+# パッケージビルド
+uv build
+
+# PyPIへのパブリッシュ（テスト環境）
+uv publish --repository testpypi
+```
+
+### 6. 依存関係管理
+
+- `uv add` でパッケージ追加
+- `uv remove` でパッケージ削除
+- `uv lock` でロックファイル更新
+- セキュリティアップデートは定期的に実行
+
+### 7. uvxによる直接実行対応
+
+#### スクリプトエントリーポイント設定
+
+```toml
+[project.scripts]
+reinfolib-mcp = "reinfolib_mcp.cli:main"  # MCPサーバー起動
+```
+
+#### uvx実行パターン
+
+```bash
+# パッケージを直接実行（インストール不要）
+uvx reinfolib-mcp --help
+uvx reinfolib-mcp search --prefecture 13
+
+# 特定バージョンでの実行
+uvx reinfolib-mcp@1.0.0 search --city 13101
+
+# 開発版での実行
+uvx --from . reinfolib-mcp --help
+
+# MCPサーバーとして起動
+uvx reinfolib-mcp server --transport stdio
+uvx reinfolib-mcp server --transport http --port 8000
+```
+
+#### CLI設計パターン
+
+```python
+# cli.py の実装例
+import click
+from typing import Optional
+
+@click.group()
+@click.version_option()
+def main():
+    """不動産情報ライブラリMCPツール"""
+    pass
+
+@main.command()
+@click.option('--prefecture', help='都道府県コード')
+@click.option('--city', help='市区町村コード')
+@click.option('--api-key', envvar='REINFOLIB_API_KEY', help='APIキー')
+def search(prefecture: str, city: Optional[str], api_key: str):
+    """不動産価格情報を検索"""
+    click.echo(f"検索中: 都道府県={prefecture}, 市区町村={city}")
+
+@main.command()
+@click.option('--transport', default='stdio', help='トランスポート方式')
+@click.option('--port', default=8000, help='HTTPポート番号')
+def server(transport: str, port: int):
+    """MCPサーバーを起動"""
+    click.echo(f"MCPサーバー起動: {transport}")
+
+if __name__ == '__main__':
+    main()
+```
+
+### 8. 開発ワークフロー
+
+1. `uv run black .` - コードフォーマット
+2. `uv run isort .` - インポート順序調整
+3. `uv run ruff check .` - リンティング
+4. `uv run mypy src/` - 型チェック
+5. `uv run pytest` - テスト実行
+6. `uvx --from . reinfolib-mcp --help` - 開発版での動作確認
