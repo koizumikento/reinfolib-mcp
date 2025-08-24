@@ -6,7 +6,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 from geojson import Feature, FeatureCollection, Point, Polygon
 
 
@@ -173,7 +173,8 @@ class GeoJSONResponse(BaseModel):
     type: str = Field(default="FeatureCollection")
     features: List[Dict[str, Any]] = Field(default_factory=list)
     
-    @validator('type')
+    @field_validator('type')
+    @classmethod
     def validate_type(cls, v: str) -> str:
         if v not in ["FeatureCollection", "Feature"]:
             raise ValueError("typeはFeatureCollectionまたはFeatureである必要があります")
@@ -190,14 +191,16 @@ class RealEstateSearchParams(BaseModel):
     to_date: Optional[str] = Field(None, description="取引時期終了（YYYYMMDD）")
     property_type: Optional[PropertyType] = Field(None, description="不動産種別")
     
-    @validator('prefecture')
+    @field_validator('prefecture')
+    @classmethod
     def validate_prefecture(cls, v: Optional[str]) -> Optional[str]:
         if v is not None:
             if not (v.isdigit() and 1 <= int(v) <= 47):
                 raise ValueError("都道府県コードは01-47の範囲で指定してください")
         return v
     
-    @validator('from_date', 'to_date')
+    @field_validator('from_date', 'to_date')
+    @classmethod
     def validate_date_format(cls, v: Optional[str]) -> Optional[str]:
         if v is not None:
             if len(v) != 8 or not v.isdigit():
@@ -211,12 +214,13 @@ class TileCoordinates(BaseModel):
     x: int = Field(description="タイルX座標", ge=0)
     y: int = Field(description="タイルY座標", ge=0)
     
-    @validator('x', 'y')
-    def validate_tile_coords(cls, v: int, values: Dict[str, Any]) -> int:
-        if 'z' in values:
-            max_coord = 2 ** values['z'] - 1
+    @field_validator('x', 'y')
+    @classmethod
+    def validate_tile_coords(cls, v: int, info) -> int:
+        if info.data and 'z' in info.data:
+            max_coord = 2 ** info.data['z'] - 1
             if v < 0 or v > max_coord:
-                raise ValueError(f"座標値はズームレベル{values['z']}では0-{max_coord}の範囲で指定してください")
+                raise ValueError(f"座標値はズームレベル{info.data['z']}では0-{max_coord}の範囲で指定してください")
         return v
 
 
@@ -225,8 +229,8 @@ class ErrorResponse(BaseModel):
     """APIエラーレスポンスモデル"""
     error: Dict[str, Union[str, int]] = Field(description="エラー情報")
     
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "error": {
                     "code": "INVALID_PARAMETER",
@@ -235,3 +239,4 @@ class ErrorResponse(BaseModel):
                 }
             }
         }
+    )

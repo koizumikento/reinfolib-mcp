@@ -71,13 +71,8 @@ class TestReinfiolibClient:
             ]
         }
 
-        with patch('httpx.AsyncClient') as mock_client:
-            mock_response = AsyncMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = mock_response_data
-            mock_client.return_value.get.return_value = mock_response
-            mock_client.return_value.__aenter__.return_value = mock_client.return_value
-            mock_client.return_value.__aexit__.return_value = None
+        with patch('reinfolib_mcp.client.ReinfiolibClient._make_request') as mock_request:
+            mock_request.return_value = mock_response_data
 
             client = ReinfiolibClient(api_key="test_key")
             result = await client.search_real_estate_transactions(
@@ -109,13 +104,8 @@ class TestReinfiolibClient:
             ]
         }
 
-        with patch('httpx.AsyncClient') as mock_client:
-            mock_response = AsyncMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = mock_response_data
-            mock_client.return_value.get.return_value = mock_response
-            mock_client.return_value.__aenter__.return_value = mock_client.return_value
-            mock_client.return_value.__aexit__.return_value = None
+        with patch('reinfolib_mcp.client.ReinfiolibClient._make_request') as mock_request:
+            mock_request.return_value = mock_response_data
 
             client = ReinfiolibClient(api_key="test_key")
             result = await client.get_municipalities(
@@ -147,13 +137,8 @@ class TestReinfiolibClient:
             ]
         }
 
-        with patch('httpx.AsyncClient') as mock_client:
-            mock_response = AsyncMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = mock_geojson_data
-            mock_client.return_value.get.return_value = mock_response
-            mock_client.return_value.__aenter__.return_value = mock_client.return_value
-            mock_client.return_value.__aexit__.return_value = None
+        with patch('reinfolib_mcp.client.ReinfiolibClient._make_request') as mock_request:
+            mock_request.return_value = mock_geojson_data
 
             client = ReinfiolibClient(api_key="test_key")
             result = await client.get_land_price_points(
@@ -168,12 +153,8 @@ class TestReinfiolibClient:
     @pytest.mark.asyncio
     async def test_authentication_error(self):
         """認証エラーのテスト"""
-        with patch('httpx.AsyncClient') as mock_client:
-            mock_response = AsyncMock()
-            mock_response.status_code = 401
-            mock_client.return_value.get.return_value = mock_response
-            mock_client.return_value.__aenter__.return_value = mock_client.return_value
-            mock_client.return_value.__aexit__.return_value = None
+        with patch('reinfolib_mcp.client.ReinfiolibClient._make_request') as mock_request:
+            mock_request.side_effect = AuthenticationError("APIキーが無効です")
 
             client = ReinfiolibClient(api_key="invalid_key")
             
@@ -183,12 +164,8 @@ class TestReinfiolibClient:
     @pytest.mark.asyncio
     async def test_invalid_parameter_error(self):
         """パラメータエラーのテスト"""
-        with patch('httpx.AsyncClient') as mock_client:
-            mock_response = AsyncMock()
-            mock_response.status_code = 400
-            mock_client.return_value.get.return_value = mock_response
-            mock_client.return_value.__aenter__.return_value = mock_client.return_value
-            mock_client.return_value.__aexit__.return_value = None
+        with patch('reinfolib_mcp.client.ReinfiolibClient._make_request') as mock_request:
+            mock_request.side_effect = InvalidParameterError("リクエストパラメータが不正です")
 
             client = ReinfiolibClient(api_key="test_key")
             
@@ -198,12 +175,8 @@ class TestReinfiolibClient:
     @pytest.mark.asyncio
     async def test_not_found_error(self):
         """404エラーのテスト"""
-        with patch('httpx.AsyncClient') as mock_client:
-            mock_response = AsyncMock()
-            mock_response.status_code = 404
-            mock_client.return_value.get.return_value = mock_response
-            mock_client.return_value.__aenter__.return_value = mock_client.return_value
-            mock_client.return_value.__aexit__.return_value = None
+        with patch('reinfolib_mcp.client.ReinfiolibClient._make_request') as mock_request:
+            mock_request.side_effect = NotFoundError("指定されたリソースが見つかりません")
 
             client = ReinfiolibClient(api_key="test_key")
             
@@ -213,12 +186,8 @@ class TestReinfiolibClient:
     @pytest.mark.asyncio
     async def test_rate_limit_error(self):
         """レート制限エラーのテスト"""
-        with patch('httpx.AsyncClient') as mock_client:
-            mock_response = AsyncMock()
-            mock_response.status_code = 429
-            mock_client.return_value.get.return_value = mock_response
-            mock_client.return_value.__aenter__.return_value = mock_client.return_value
-            mock_client.return_value.__aexit__.return_value = None
+        with patch('reinfolib_mcp.client.ReinfiolibClient._make_request') as mock_request:
+            mock_request.side_effect = RateLimitError("レート制限に達しました")
 
             client = ReinfiolibClient(api_key="test_key")
             
@@ -228,12 +197,8 @@ class TestReinfiolibClient:
     @pytest.mark.asyncio
     async def test_server_error(self):
         """サーバーエラーのテスト"""
-        with patch('httpx.AsyncClient') as mock_client:
-            mock_response = AsyncMock()
-            mock_response.status_code = 500
-            mock_client.return_value.get.return_value = mock_response
-            mock_client.return_value.__aenter__.return_value = mock_client.return_value
-            mock_client.return_value.__aexit__.return_value = None
+        with patch('reinfolib_mcp.client.ReinfiolibClient._make_request') as mock_request:
+            mock_request.side_effect = ServerError("サーバーエラー: 500")
 
             client = ReinfiolibClient(api_key="test_key")
             
@@ -243,10 +208,8 @@ class TestReinfiolibClient:
     @pytest.mark.asyncio
     async def test_network_error(self):
         """ネットワークエラーのテスト"""
-        with patch('httpx.AsyncClient') as mock_client:
-            mock_client.return_value.get.side_effect = httpx.ConnectError("Connection failed")
-            mock_client.return_value.__aenter__.return_value = mock_client.return_value
-            mock_client.return_value.__aexit__.return_value = None
+        with patch('reinfolib_mcp.client.ReinfiolibClient._make_request') as mock_request:
+            mock_request.side_effect = NetworkError("接続エラー: Connection failed")
 
             client = ReinfiolibClient(api_key="test_key")
             
@@ -256,16 +219,18 @@ class TestReinfiolibClient:
     @pytest.mark.asyncio
     async def test_context_manager(self):
         """コンテキストマネージャーのテスト"""
-        with patch('httpx.AsyncClient') as mock_client:
-            mock_client.return_value.__aenter__.return_value = mock_client.return_value
-            mock_client.return_value.__aexit__.return_value = None
-            mock_client.return_value.aclose = AsyncMock()
+        with patch('reinfolib_mcp.client.httpx.AsyncClient') as mock_client:
+            mock_instance = AsyncMock()
+            mock_client.return_value = mock_instance
+            mock_instance.__aenter__.return_value = mock_instance
+            mock_instance.__aexit__.return_value = None
+            mock_instance.aclose = AsyncMock()
 
             async with ReinfiolibClient(api_key="test_key") as client:
                 assert client.api_key == "test_key"
             
             # acloseが呼ばれることを確認
-            mock_client.return_value.aclose.assert_called_once()
+            mock_instance.aclose.assert_called_once()
 
 
 class TestSyncReinfiolibClient:

@@ -1328,6 +1328,14 @@ test = [
     { name = "pytest-mock" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-cov" },
+    { name = "pytest-mock" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "asyncio-throttle", specifier = ">=1.0.0" },
@@ -1352,6 +1360,14 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
 ]
 provides-extras = ["dev", "test"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=8.4.1" },
+    { name = "pytest-asyncio", specifier = ">=1.1.0" },
+    { name = "pytest-cov", specifier = ">=6.2.1" },
+    { name = "pytest-mock", specifier = ">=3.14.1" },
+]
 
 [[package]]
 name = "requests"

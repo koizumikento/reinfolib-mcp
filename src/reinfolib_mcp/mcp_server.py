@@ -26,11 +26,7 @@ def create_mcp_server(api_key: Optional[str] = None) -> FastMCP:
         FastMCP: 設定済みのMCPサーバー
     """
     # MCPサーバー初期化
-    mcp = FastMCP(
-        name="不動産情報ライブラリMCP",
-        description="国土交通省不動産情報ライブラリAPIアクセスツール。"
-                   "不動産価格、地価、都市計画、施設、災害リスク情報を検索・取得できます。"
-    )
+    mcp = FastMCP("不動産情報ライブラリMCP")
 
     # APIクライアント初期化
     try:
