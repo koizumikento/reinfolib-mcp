@@ -159,6 +159,101 @@ class TestMCPTools:
             mock_client.get_land_price_points.assert_called_once()
 
     @pytest.mark.asyncio
+    async def test_appraisal_info_tool(self, mock_client):
+        """鑑定評価書情報ツールのテスト"""
+        mock_result = {
+            "data": [
+                {"prefecture": "東京都", "city": "千代田区", "price": 1000000}
+            ]
+        }
+        mock_client.get_appraisal_info.return_value = mock_result
+        
+        with patch('reinfolib_mcp.mcp_server.ReinfiolibClient') as mock_client_class:
+            mock_client_class.return_value = mock_client
+            
+            server = create_mcp_server(api_key="test_key")
+            
+            result = await mock_client.get_appraisal_info(prefecture="13")
+            
+            assert result == mock_result
+            mock_client.get_appraisal_info.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_real_estate_points_tool(self, mock_client):
+        """不動産価格ポイント情報ツールのテスト"""
+        mock_geojson = {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "properties": {"transaction_price": 50000000}
+                }
+            ]
+        }
+        mock_client.get_real_estate_points.return_value = mock_geojson
+        
+        with patch('reinfolib_mcp.mcp_server.ReinfiolibClient') as mock_client_class:
+            mock_client_class.return_value = mock_client
+            
+            server = create_mcp_server(api_key="test_key")
+            
+            result = await mock_client.get_real_estate_points(z=11, x=1818, y=806)
+            
+            assert result["type"] == "FeatureCollection"
+            assert len(result["features"]) == 1
+            mock_client.get_real_estate_points.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_school_districts_tool(self, mock_client):
+        """学校区情報ツールのテスト"""
+        mock_geojson = {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "properties": {"school_name": "テスト小学校", "district_name": "テスト小学校区"}
+                }
+            ]
+        }
+        mock_client.get_elementary_school_districts.return_value = mock_geojson
+        
+        with patch('reinfolib_mcp.mcp_server.ReinfiolibClient') as mock_client_class:
+            mock_client_class.return_value = mock_client
+            
+            server = create_mcp_server(api_key="test_key")
+            
+            result = await mock_client.get_elementary_school_districts(z=12, x=3636, y=1612)
+            
+            assert result["type"] == "FeatureCollection"
+            assert result["features"][0]["properties"]["school_name"] == "テスト小学校"
+            mock_client.get_elementary_school_districts.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_welfare_facilities_tool(self, mock_client):
+        """福祉施設情報ツールのテスト"""
+        mock_geojson = {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "properties": {"facility_name": "テスト福祉施設", "facility_type": "介護施設"}
+                }
+            ]
+        }
+        mock_client.get_welfare_facilities.return_value = mock_geojson
+        
+        with patch('reinfolib_mcp.mcp_server.ReinfiolibClient') as mock_client_class:
+            mock_client_class.return_value = mock_client
+            
+            server = create_mcp_server(api_key="test_key")
+            
+            result = await mock_client.get_welfare_facilities(z=12, x=3636, y=1612)
+            
+            assert result["type"] == "FeatureCollection"
+            assert result["features"][0]["properties"]["facility_name"] == "テスト福祉施設"
+            mock_client.get_welfare_facilities.assert_called_once()
+
+    @pytest.mark.asyncio
     async def test_error_handling_in_tools(self, mock_client):
         """ツールでのエラーハンドリングテスト"""
         # APIエラーを発生させる

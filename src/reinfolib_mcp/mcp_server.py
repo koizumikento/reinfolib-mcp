@@ -229,6 +229,198 @@ def create_mcp_server(api_key: str | None = None) -> FastMCP:
                 "features": []
             }
 
+    # === 鑑定評価・不動産ポイント情報ツール ===
+
+    @mcp.tool(
+        name="reinfolib_get_appraisal_info",
+        description="鑑定評価書情報を取得します。指定地域の不動産鑑定評価データを検索できます。",
+        tags={"appraisal", "evaluation", "real-estate"}
+    )
+    async def get_appraisal_info(
+        prefecture: str,
+        city: str | None = None,
+        language: str = "ja"
+    ) -> dict[str, Any]:
+        """
+        鑑定評価書情報を取得します。
+
+        Args:
+            prefecture: 都道府県コード（01-47）例：東京都=13、大阪府=27
+            city: 市区町村コード（オプション）
+            language: 言語（ja:日本語、en:英語）
+
+        Returns:
+            鑑定評価書情報
+        """
+        try:
+            lang_enum = Language.ENGLISH if language == "en" else Language.JAPANESE
+
+            result = await client.get_appraisal_info(
+                prefecture=prefecture,
+                city=city,
+                lang=lang_enum
+            )
+
+            return result
+
+        except ReinfiolibAPIError as e:
+            return {
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "data": []
+            }
+
+    @mcp.tool(
+        name="reinfolib_get_real_estate_points",
+        description="不動産価格情報のポイント（点）データを取得します。地図上の個別取引ポイント情報を確認できます。",
+        tags={"real-estate", "points", "transaction", "geospatial"}
+    )
+    async def get_real_estate_points(
+        zoom_level: int,
+        tile_x: int,
+        tile_y: int,
+        response_format: str = "geojson"
+    ) -> dict[str, Any]:
+        """
+        不動産価格情報のポイントデータを取得します。
+
+        Args:
+            zoom_level: ズームレベル（1-18）
+            tile_x: タイルX座標
+            tile_y: タイルY座標
+            response_format: レスポンス形式（geojson、pbf）
+
+        Returns:
+            不動産価格ポイント情報（GeoJSON形式）
+        """
+        try:
+            format_enum = ResponseFormat.PBF if response_format == "pbf" else ResponseFormat.GEOJSON
+
+            result = await client.get_real_estate_points(
+                z=zoom_level,
+                x=tile_x,
+                y=tile_y,
+                response_format=format_enum
+            )
+
+            return result
+
+        except ReinfiolibAPIError as e:
+            return {
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "type": "FeatureCollection",
+                "features": []
+            }
+
+    # === 教育・福祉施設情報ツール ===
+
+    @mcp.tool(
+        name="reinfolib_get_school_districts",
+        description="学校区情報を取得します。小学校区・中学校区の境界データを地図情報として取得できます。",
+        tags={"education", "school-districts", "elementary", "junior-high", "geospatial"}
+    )
+    async def get_school_districts(
+        zoom_level: int,
+        tile_x: int,
+        tile_y: int,
+        school_type: str = "elementary",
+        response_format: str = "geojson"
+    ) -> dict[str, Any]:
+        """
+        学校区情報を取得します。
+
+        Args:
+            zoom_level: ズームレベル（1-18）
+            tile_x: タイルX座標
+            tile_y: タイルY座標
+            school_type: 学校種別（elementary:小学校区、junior_high:中学校区）
+            response_format: レスポンス形式（geojson、pbf）
+
+        Returns:
+            学校区情報（GeoJSON形式）
+        """
+        try:
+            format_enum = ResponseFormat.PBF if response_format == "pbf" else ResponseFormat.GEOJSON
+
+            if school_type == "junior_high":
+                result = await client.get_junior_high_school_districts(
+                    z=zoom_level,
+                    x=tile_x,
+                    y=tile_y,
+                    response_format=format_enum
+                )
+            else:  # デフォルトは小学校区
+                result = await client.get_elementary_school_districts(
+                    z=zoom_level,
+                    x=tile_x,
+                    y=tile_y,
+                    response_format=format_enum
+                )
+
+            return result
+
+        except ReinfiolibAPIError as e:
+            return {
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "type": "FeatureCollection",
+                "features": []
+            }
+
+    @mcp.tool(
+        name="reinfolib_get_childcare_welfare",
+        description="保育園・幼稚園・福祉施設情報を取得します。子育て・福祉に関連する施設の位置情報を確認できます。",
+        tags={"childcare", "kindergarten", "welfare", "facilities", "geospatial"}
+    )
+    async def get_childcare_welfare_facilities(
+        zoom_level: int,
+        tile_x: int,
+        tile_y: int,
+        facility_type: str = "kindergarten",
+        response_format: str = "geojson"
+    ) -> dict[str, Any]:
+        """
+        保育園・幼稚園・福祉施設情報を取得します。
+
+        Args:
+            zoom_level: ズームレベル（1-18）
+            tile_x: タイルX座標
+            tile_y: タイルY座標
+            facility_type: 施設種別（kindergarten:保育園・幼稚園、welfare:福祉施設）
+            response_format: レスポンス形式（geojson、pbf）
+
+        Returns:
+            施設情報（GeoJSON形式）
+        """
+        try:
+            format_enum = ResponseFormat.PBF if response_format == "pbf" else ResponseFormat.GEOJSON
+
+            if facility_type == "welfare":
+                result = await client.get_welfare_facilities(
+                    z=zoom_level,
+                    x=tile_x,
+                    y=tile_y,
+                    response_format=format_enum
+                )
+            else:  # デフォルトは保育園・幼稚園
+                result = await client.get_kindergartens(
+                    z=zoom_level,
+                    x=tile_x,
+                    y=tile_y,
+                    response_format=format_enum
+                )
+
+            return result
+
+        except ReinfiolibAPIError as e:
+            return {
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "type": "FeatureCollection",
+                "features": []
+            }
+
     # === 施設情報ツール ===
 
     @mcp.tool(

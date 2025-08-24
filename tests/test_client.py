@@ -217,6 +217,117 @@ class TestReinfiolibClient:
                 await client.search_real_estate_transactions(prefecture="13")
 
     @pytest.mark.asyncio
+    async def test_appraisal_info(self):
+        """鑑定評価書情報取得のテスト"""
+        mock_response_data = {
+            "data": [
+                {
+                    "prefecture": "東京都",
+                    "city": "千代田区",
+                    "appraisal_date": "2023-01-01",
+                    "price": 1000000
+                }
+            ]
+        }
+
+        with patch('reinfolib_mcp.client.ReinfiolibClient._make_request') as mock_request:
+            mock_request.return_value = mock_response_data
+
+            client = ReinfiolibClient(api_key="test_key")
+            result = await client.get_appraisal_info(
+                prefecture="13",
+                city="13101"
+            )
+
+            assert result["data"][0]["prefecture"] == "東京都"
+            assert result["data"][0]["city"] == "千代田区"
+
+    @pytest.mark.asyncio
+    async def test_real_estate_points(self):
+        """不動産価格ポイント情報取得のテスト"""
+        mock_geojson_data = {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "geometry": {
+                        "type": "Point",
+                        "coordinates": [139.7514, 35.6851]
+                    },
+                    "properties": {
+                        "transaction_price": 50000000,
+                        "area": 100.5
+                    }
+                }
+            ]
+        }
+
+        with patch('reinfolib_mcp.client.ReinfiolibClient._make_request') as mock_request:
+            mock_request.return_value = mock_geojson_data
+
+            client = ReinfiolibClient(api_key="test_key")
+            result = await client.get_real_estate_points(
+                z=11, x=1818, y=806
+            )
+
+            assert result["type"] == "FeatureCollection"
+            assert len(result["features"]) == 1
+
+    @pytest.mark.asyncio
+    async def test_elementary_school_districts(self):
+        """小学校区情報取得のテスト"""
+        mock_geojson_data = {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "properties": {
+                        "school_name": "千代田区立麹町小学校",
+                        "district_name": "麹町小学校区"
+                    }
+                }
+            ]
+        }
+
+        with patch('reinfolib_mcp.client.ReinfiolibClient._make_request') as mock_request:
+            mock_request.return_value = mock_geojson_data
+
+            client = ReinfiolibClient(api_key="test_key")
+            result = await client.get_elementary_school_districts(
+                z=12, x=3636, y=1612
+            )
+
+            assert result["type"] == "FeatureCollection"
+            assert result["features"][0]["properties"]["school_name"] == "千代田区立麹町小学校"
+
+    @pytest.mark.asyncio
+    async def test_welfare_facilities(self):
+        """福祉施設情報取得のテスト"""
+        mock_geojson_data = {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "properties": {
+                        "facility_name": "千代田区社会福祉協議会",
+                        "facility_type": "社会福祉施設"
+                    }
+                }
+            ]
+        }
+
+        with patch('reinfolib_mcp.client.ReinfiolibClient._make_request') as mock_request:
+            mock_request.return_value = mock_geojson_data
+
+            client = ReinfiolibClient(api_key="test_key")
+            result = await client.get_welfare_facilities(
+                z=12, x=3636, y=1612
+            )
+
+            assert result["type"] == "FeatureCollection"
+            assert result["features"][0]["properties"]["facility_name"] == "千代田区社会福祉協議会"
+
+    @pytest.mark.asyncio
     async def test_context_manager(self):
         """コンテキストマネージャーのテスト"""
         with patch('reinfolib_mcp.client.httpx.AsyncClient') as mock_client:
@@ -277,6 +388,45 @@ class TestSyncReinfiolibClient:
                 
                 client = SyncReinfiolibClient(api_key="test_key")
                 result = client.get_municipalities(prefecture="13")
+                
+                assert result == mock_result
+                mock_run.assert_called_once()
+
+    def test_sync_get_appraisal_info(self):
+        """同期版鑑定評価書情報取得のテスト"""
+        mock_result = {"data": [{"prefecture": "東京都", "city": "千代田区"}]}
+        
+        with patch('reinfolib_mcp.client.ReinfiolibClient') as mock_async_client:
+            mock_instance = AsyncMock()
+            mock_instance.get_appraisal_info.return_value = mock_result
+            mock_async_client.return_value = mock_instance
+            
+            with patch('asyncio.run') as mock_run:
+                mock_run.return_value = mock_result
+                
+                client = SyncReinfiolibClient(api_key="test_key")
+                result = client.get_appraisal_info(prefecture="13")
+                
+                assert result == mock_result
+                mock_run.assert_called_once()
+
+    def test_sync_get_elementary_school_districts(self):
+        """同期版小学校区情報取得のテスト"""
+        mock_result = {
+            "type": "FeatureCollection",
+            "features": [{"properties": {"school_name": "テスト小学校"}}]
+        }
+        
+        with patch('reinfolib_mcp.client.ReinfiolibClient') as mock_async_client:
+            mock_instance = AsyncMock()
+            mock_instance.get_elementary_school_districts.return_value = mock_result
+            mock_async_client.return_value = mock_instance
+            
+            with patch('asyncio.run') as mock_run:
+                mock_run.return_value = mock_result
+                
+                client = SyncReinfiolibClient(api_key="test_key")
+                result = client.get_elementary_school_districts(z=12, x=3636, y=1612)
                 
                 assert result == mock_result
                 mock_run.assert_called_once()
