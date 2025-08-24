@@ -2,7 +2,7 @@
 APIクライアントのテスト
 """
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -350,18 +350,18 @@ class TestSyncReinfiolibClient:
     def test_sync_client_initialization(self):
         """同期クライアントの初期化"""
         with patch('reinfolib_mcp.client.ReinfiolibClient') as mock_async_client:
-            mock_async_client.return_value = AsyncMock()
+            mock_async_client.return_value = MagicMock()
 
             client = SyncReinfiolibClient(api_key="test_key")
             assert client._async_client is not None
 
     def test_sync_search_real_estate_transactions(self):
         """同期版不動産検索のテスト"""
-        mock_result = AsyncMock()
-        mock_result.total_count = 50
+        from reinfolib_mcp.models import RealEstateSearchResult
+        mock_result = RealEstateSearchResult(total_count=50, data=[])
 
         with patch('reinfolib_mcp.client.ReinfiolibClient') as mock_async_client:
-            mock_instance = AsyncMock()
+            mock_instance = MagicMock()
             mock_instance.search_real_estate_transactions.return_value = mock_result
             mock_async_client.return_value = mock_instance
 
@@ -371,15 +371,15 @@ class TestSyncReinfiolibClient:
                 client = SyncReinfiolibClient(api_key="test_key")
                 result = client.search_real_estate_transactions(prefecture="13")
 
-                assert result == mock_result
+                assert result.total_count == 50
                 mock_run.assert_called_once()
 
     def test_sync_get_municipalities(self):
         """同期版市区町村一覧取得のテスト"""
-        mock_result = [AsyncMock(), AsyncMock()]
+        mock_result = [{"city_name": "千代田区"}, {"city_name": "中央区"}]
 
         with patch('reinfolib_mcp.client.ReinfiolibClient') as mock_async_client:
-            mock_instance = AsyncMock()
+            mock_instance = MagicMock()
             mock_instance.get_municipalities.return_value = mock_result
             mock_async_client.return_value = mock_instance
 
@@ -397,7 +397,7 @@ class TestSyncReinfiolibClient:
         mock_result = {"data": [{"prefecture": "東京都", "city": "千代田区"}]}
 
         with patch('reinfolib_mcp.client.ReinfiolibClient') as mock_async_client:
-            mock_instance = AsyncMock()
+            mock_instance = MagicMock()
             mock_instance.get_appraisal_info.return_value = mock_result
             mock_async_client.return_value = mock_instance
 
@@ -418,7 +418,7 @@ class TestSyncReinfiolibClient:
         }
 
         with patch('reinfolib_mcp.client.ReinfiolibClient') as mock_async_client:
-            mock_instance = AsyncMock()
+            mock_instance = MagicMock()
             mock_instance.get_elementary_school_districts.return_value = mock_result
             mock_async_client.return_value = mock_instance
 
@@ -434,7 +434,8 @@ class TestSyncReinfiolibClient:
     def test_sync_context_manager(self):
         """同期版コンテキストマネージャーのテスト"""
         with patch('reinfolib_mcp.client.ReinfiolibClient') as mock_async_client:
-            mock_instance = AsyncMock()
+            # 同期版テストなので通常のMockで十分
+            mock_instance = MagicMock()
             mock_async_client.return_value = mock_instance
 
             with patch('asyncio.run') as mock_run:

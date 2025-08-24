@@ -17,8 +17,8 @@ class TestMCPServerCreation:
     @patch('reinfolib_mcp.mcp_server.FastMCP')
     def test_create_mcp_server_success(self, mock_fastmcp, mock_client):
         """MCPサーバーの正常作成"""
-        mock_client_instance = AsyncMock()
-        mock_client.return_value = mock_client_instance
+        # クライアントの作成が成功することを確認（実際のインスタンスは不要）
+        mock_client.return_value = MagicMock()
 
         mock_mcp_instance = MagicMock()
         mock_fastmcp.return_value = mock_mcp_instance
@@ -42,8 +42,8 @@ class TestMCPServerCreation:
     @patch('reinfolib_mcp.mcp_server.FastMCP')
     def test_create_mcp_server_env_api_key(self, mock_fastmcp, mock_client):
         """環境変数からAPIキーを取得してサーバー作成"""
-        mock_client_instance = AsyncMock()
-        mock_client.return_value = mock_client_instance
+        # クライアントの作成が成功することを確認（実際のインスタンスは不要）
+        mock_client.return_value = MagicMock()
 
         mock_mcp_instance = MagicMock()
         mock_fastmcp.return_value = mock_mcp_instance
@@ -118,8 +118,8 @@ class TestMCPTools:
         """市区町村一覧ツールのテスト"""
         # モックレスポンス設定
         mock_municipalities = [
-            MagicMock(dict=lambda: {"city_code": "13101", "city_name": "千代田区"}),
-            MagicMock(dict=lambda: {"city_code": "13102", "city_name": "中央区"})
+            {"city_code": "13101", "city_name": "千代田区"},
+            {"city_code": "13102", "city_name": "中央区"}
         ]
         mock_client.get_municipalities.return_value = mock_municipalities
 
