@@ -197,9 +197,6 @@ def register_all_tools(mcp: FastMCP, api_key: str):
         return await client.get_land_price_points(z, x, y)
 ```
 
-```
-```
-
 ## 開発・テスト時の使用方法
 
 ### 開発版のMCPサーバーテスト

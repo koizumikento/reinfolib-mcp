@@ -9,7 +9,7 @@ description: 国土交通省不動産情報ライブラリAPIを使用したMCP�
 
 ## プロジェクト構造
 
-```
+```text
 reinfolib-mcp/
 ├── pyproject.toml          # uvベースのプロジェクト設定
 ├── uv.lock                 # 依存関係のロックファイル

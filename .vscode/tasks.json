@@ -23,7 +23,7 @@
         "showReuseMessage": true,
         "clear": false
       },
-      "problemMatcher": "$pytest"
+      "problemMatcher": "$python"
     },
     {
       "label": "🧪 カバレッジ付きテスト実行",
@@ -44,7 +44,7 @@
         "focus": false,
         "panel": "shared"
       },
-      "problemMatcher": "$pytest"
+      "problemMatcher": "$python"
     },
     {
       "label": "🧪 現在のファイルをテスト",
@@ -63,7 +63,7 @@
         "focus": false,
         "panel": "shared"
       },
-      "problemMatcher": "$pytest"
+      "problemMatcher": "$python"
     },
     {
       "label": "🧪 失敗したテストのみ再実行",
@@ -82,7 +82,7 @@
         "focus": false,
         "panel": "shared"
       },
-      "problemMatcher": "$pytest"
+      "problemMatcher": "$python"
     },
     {
       "label": "🔍 Ruff: 全体チェック",
