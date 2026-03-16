@@ -312,6 +312,7 @@ MIT License - 詳細は [LICENSE](LICENSE) ファイルを参照してくださ�
 ## 貢献
 
 プルリクエストやIssueは歓迎します。貢献前に [CONTRIBUTING.md](CONTRIBUTING.md) をお読みください。
+問い合わせ先は `services@straydogman.com` です。
 
 ## 関連リンク
 

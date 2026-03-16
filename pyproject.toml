@@ -3,7 +3,7 @@ name = "reinfolib-mcp"
 version = "0.1.0"
 description = "国土交通省不動産情報ライブラリAPI用MCPサーバーとPythonライブラリ"
 authors = [
-    {name = "Developer", email = "dev@example.com"}
+    {name = "Developer", email = "services@straydogman.com"}
 ]
 readme = "README.md"
 license = {text = "MIT"}
