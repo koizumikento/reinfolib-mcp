@@ -106,6 +106,12 @@ asyncio.run(main())
 uvx reinfolib-mcp --help
 ```
 
+### GitHubからuvでインストール
+
+```bash
+uv tool install git+https://github.com/koizumikento/reinfolib-mcp
+```
+
 ### pipインストール
 
 ```bash
