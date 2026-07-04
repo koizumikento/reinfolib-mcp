@@ -121,7 +121,7 @@ pip install reinfolib-mcp
 ### 開発版インストール
 
 ```bash
-git clone https://github.com/username/reinfolib-mcp.git
+git clone https://github.com/koizumikento/reinfolib-mcp.git
 cd reinfolib-mcp
 uv venv
 source .venv/bin/activate  # Linux/Mac
@@ -265,7 +265,7 @@ async def analyze_area(lat, lon):
 ### 開発環境セットアップ
 
 ```bash
-git clone https://github.com/username/reinfolib-mcp.git
+git clone https://github.com/koizumikento/reinfolib-mcp.git
 cd reinfolib-mcp
 
 # uv環境作成
@@ -364,7 +364,7 @@ A: 以下を試してください：
 
 - GitHub Issues: バグレポート・機能要求
 - Discussions: 質問・使用方法の相談
-- Email: <support@example.com>（プロジェクト管理者）
+- Email: <services@straydogman.com>（プロジェクト管理者）
 
 ---
 

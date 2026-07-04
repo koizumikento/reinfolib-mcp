@@ -6,7 +6,7 @@
 
 __version__ = "0.1.0"
 __author__ = "Developer"
-__email__ = "dev@example.com"
+__email__ = "services@straydogman.com"
 
 # メインクラスとツールをエクスポート
 from .client import ReinfiolibClient, SyncReinfiolibClient

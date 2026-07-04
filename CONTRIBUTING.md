@@ -18,7 +18,7 @@
 ## 開発環境
 
 ```bash
-git clone https://github.com/username/reinfolib-mcp.git
+git clone https://github.com/koizumikento/reinfolib-mcp.git
 cd reinfolib-mcp
 
 uv venv
