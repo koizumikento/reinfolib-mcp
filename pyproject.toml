@@ -1,6 +1,6 @@
 [project]
 name = "reinfolib-mcp"
-version = "0.1.0"
+dynamic = ["version"]
 description = "国土交通省不動産情報ライブラリAPI用MCPサーバーとPythonライブラリ"
 authors = [
     {name = "Developer", email = "services@straydogman.com"}

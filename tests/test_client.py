@@ -1,446 +1,211 @@
-"""
-APIクライアントのテスト
-"""
+"""現行の不動産情報ライブラリAPI契約に対する回帰テスト。"""
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from reinfolib_mcp.client import ReinfiolibClient, SyncReinfiolibClient
+from reinfolib_mcp.client import API_CONTRACTS, ReinfiolibClient, SyncReinfiolibClient
 from reinfolib_mcp.exceptions import (
     AuthenticationError,
     InvalidParameterError,
-    NetworkError,
-    NotFoundError,
-    RateLimitError,
     ReinfiolibAPIError,
-    ServerError,
 )
-from reinfolib_mcp.models import Language, ResponseFormat
+from reinfolib_mcp.models import Language
+
+EXPECTED_API_PARAMETERS = {
+    "XIT001": (
+        {"year"},
+        {"priceClassification", "quarter", "language"},
+        {"area", "city", "station"},
+    ),
+    "XIT002": ({"area"}, {"language"}, set()),
+    "XCT001": ({"year", "area", "division"}, set(), set()),
+    "XPT001": (
+        {"response_format", "z", "x", "y", "from", "to"},
+        {"priceClassification", "landTypeCode"},
+        set(),
+    ),
+    "XPT002": (
+        {"response_format", "z", "x", "y", "year"},
+        {"priceClassification", "useCategoryCode"},
+        set(),
+    ),
+    "XKT001": ({"response_format", "z", "x", "y"}, set(), set()),
+    "XKT002": ({"response_format", "z", "x", "y"}, set(), set()),
+    "XKT003": ({"response_format", "z", "x", "y"}, set(), set()),
+    "XKT004": ({"response_format", "z", "x", "y"}, {"administrativeAreaCode"}, set()),
+    "XKT005": ({"response_format", "z", "x", "y"}, {"administrativeAreaCode"}, set()),
+    "XKT006": ({"response_format", "z", "x", "y"}, set(), set()),
+    "XKT007": ({"response_format", "z", "x", "y"}, set(), set()),
+    "XKT010": ({"response_format", "z", "x", "y"}, set(), set()),
+    "XKT011": (
+        {"response_format", "z", "x", "y"},
+        {
+            "administrativeAreaCode",
+            "welfareFacilityClassCode",
+            "welfareFacilityMiddleClassCode",
+            "welfareFacilityMinorClassCode",
+        },
+        set(),
+    ),
+    "XKT013": ({"response_format", "z", "x", "y"}, set(), set()),
+    "XKT014": ({"response_format", "z", "x", "y"}, set(), set()),
+    "XKT015": ({"response_format", "z", "x", "y"}, set(), set()),
+    "XKT016": ({"response_format", "z", "x", "y"}, {"administrativeAreaCode"}, set()),
+    "XKT017": ({"response_format", "z", "x", "y"}, {"administrativeAreaCode"}, set()),
+    "XKT018": ({"response_format", "z", "x", "y"}, set(), set()),
+    "XKT019": (
+        {"response_format", "z", "x", "y"},
+        {"prefectureCode", "districtCode"},
+        set(),
+    ),
+    "XKT020": ({"response_format", "z", "x", "y"}, set(), set()),
+    "XKT021": (
+        {"response_format", "z", "x", "y"},
+        {"prefectureCode", "administrativeAreaCode"},
+        set(),
+    ),
+    "XKT022": (
+        {"response_format", "z", "x", "y"},
+        {"prefectureCode", "administrativeAreaCode"},
+        set(),
+    ),
+    "XKT023": ({"response_format", "z", "x", "y"}, set(), set()),
+    "XKT024": ({"response_format", "z", "x", "y"}, set(), set()),
+    "XKT025": ({"response_format", "z", "x", "y"}, set(), set()),
+    "XKT026": ({"response_format", "z", "x", "y"}, set(), set()),
+    "XKT027": ({"response_format", "z", "x", "y"}, set(), set()),
+    "XKT028": ({"response_format", "z", "x", "y"}, set(), set()),
+    "XKT029": ({"response_format", "z", "x", "y"}, set(), set()),
+    "XKT030": ({"response_format", "z", "x", "y"}, set(), set()),
+    "XKT031": ({"response_format", "z", "x", "y"}, {"administrativeAreaCode"}, set()),
+    "XGT001": ({"response_format", "z", "x", "y"}, set(), set()),
+    "XST001": ({"response_format", "z", "x", "y"}, {"disastertype_code"}, set()),
+}
 
 
-class TestReinfiolibClient:
-    """非同期APIクライアントのテスト"""
+def test_official_api_contract_is_complete() -> None:
+    assert len(API_CONTRACTS) == 35
+    assert set(API_CONTRACTS) == set(EXPECTED_API_PARAMETERS)
+    for api_id, (required, optional, one_of) in EXPECTED_API_PARAMETERS.items():
+        contract = API_CONTRACTS[api_id]
+        assert contract.required == required
+        assert contract.optional == optional
+        assert contract.one_of == one_of
 
-    def test_client_initialization_with_api_key(self):
-        """APIキー指定でのクライアント初期化"""
-        client = ReinfiolibClient(api_key="test_api_key")
 
-        assert client.api_key == "test_api_key"
-        assert client.base_url == "https://www.reinfolib.mlit.go.jp/ex-api/external"
-        assert client.timeout == 30.0
+def test_removed_api_ids_are_not_exposed() -> None:
+    assert {"XIT003", "XIT004", "XIT005", "XKT008", "XKT009", "XKT012"}.isdisjoint(
+        API_CONTRACTS
+    )
 
-    def test_client_initialization_without_api_key(self):
-        """APIキー未設定での初期化エラー"""
-        with patch.dict('os.environ', {}, clear=True):
-            with pytest.raises(ReinfiolibAPIError, match="APIキーが設定されていません"):
-                ReinfiolibClient()
 
-    @patch.dict('os.environ', {'REINFOLIB_API_KEY': 'env_api_key'})
-    def test_client_initialization_from_env(self):
-        """環境変数からのAPIキー取得"""
-        client = ReinfiolibClient()
-        assert client.api_key == "env_api_key"
+def test_client_requires_api_key() -> None:
+    with patch.dict("os.environ", {}, clear=True):
+        with pytest.raises(ReinfiolibAPIError, match="APIキーが設定されていません"):
+            ReinfiolibClient()
 
-    def test_custom_base_url_and_timeout(self):
-        """カスタムベースURLとタイムアウトの設定"""
-        client = ReinfiolibClient(
-            api_key="test_key",
-            base_url="https://custom.api.example.com",
-            timeout=60.0
+
+@pytest.mark.asyncio
+async def test_xit001_uses_current_parameters() -> None:
+    client = ReinfiolibClient(api_key="test")
+    client._make_request = AsyncMock(return_value={"data": []})
+
+    result = await client.search_real_estate_transactions(
+        year=2025,
+        quarter=2,
+        city="13102",
+        price_classification="01",
+        lang=Language.JAPANESE,
+    )
+
+    assert result == {"data": []}
+    client._make_request.assert_awaited_once_with(
+        "/XIT001",
+        {
+            "year": 2025,
+            "quarter": 2,
+            "city": "13102",
+            "priceClassification": "01",
+            "language": "ja",
+        },
+    )
+    await client.close()
+
+
+@pytest.mark.asyncio
+async def test_xpt_endpoints_use_current_ids_and_required_parameters() -> None:
+    client = ReinfiolibClient(api_key="test")
+    client._make_request = AsyncMock(return_value={"features": []})
+
+    await client.get_real_estate_points(
+        z=14, x=14624, y=6016, from_period="20252", to_period="20252"
+    )
+    await client.get_land_price_points(z=14, x=14624, y=6016, year=2025)
+
+    assert client._make_request.await_args_list[0].args[0] == "/XPT001"
+    assert client._make_request.await_args_list[0].args[1]["from"] == "20252"
+    assert client._make_request.await_args_list[1].args[0] == "/XPT002"
+    assert client._make_request.await_args_list[1].args[1]["year"] == 2025
+    await client.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("method", "expected_id"),
+    [
+        ("get_elementary_school_districts", "XKT004"),
+        ("get_junior_high_school_districts", "XKT005"),
+        ("get_schools", "XKT006"),
+        ("get_kindergartens", "XKT007"),
+        ("get_medical_facilities", "XKT010"),
+        ("get_welfare_facilities", "XKT011"),
+        ("get_disaster_risk_areas", "XKT016"),
+        ("get_liquefaction_tendency", "XKT025"),
+    ],
+)
+async def test_compatibility_methods_map_to_current_ids(
+    method: str, expected_id: str
+) -> None:
+    client = ReinfiolibClient(api_key="test")
+    client._make_request = AsyncMock(return_value={"features": []})
+    await getattr(client, method)(z=14, x=14624, y=6016)
+    assert client._make_request.await_args.args[0] == f"/{expected_id}"
+    await client.close()
+
+
+@pytest.mark.asyncio
+async def test_contract_validation_rejects_missing_unknown_and_removed_inputs() -> None:
+    client = ReinfiolibClient(api_key="test")
+    with pytest.raises(InvalidParameterError, match="いずれかが必要"):
+        await client.request_api("XIT001", year=2025)
+    with pytest.raises(InvalidParameterError, match="必須パラメータ"):
+        await client.request_api("XPT002", response_format="geojson", z=14, x=1, y=1)
+    with pytest.raises(InvalidParameterError, match="使用できない"):
+        await client.request_api(
+            "XKT001", response_format="geojson", z=14, x=1, y=1, year=2025
         )
-
-        assert client.base_url == "https://custom.api.example.com"
-        assert client.timeout == 60.0
-
-    @pytest.mark.asyncio
-    async def test_successful_real_estate_search(self):
-        """不動産検索の成功テスト"""
-        mock_response_data = {
-            "total_count": 100,
-            "page": 1,
-            "per_page": 100,
-            "data": [
-                {
-                    "prefecture": "東京都",
-                    "city": "千代田区",
-                    "transaction_price": 50000000,
-                    "area": 100.5,
-                    "transaction_period": "2023年第1四半期"
-                }
-            ]
-        }
-
-        with patch('reinfolib_mcp.client.ReinfiolibClient._make_request') as mock_request:
-            mock_request.return_value = mock_response_data
-
-            client = ReinfiolibClient(api_key="test_key")
-            result = await client.search_real_estate_transactions(
-                prefecture="13",
-                city="13101"
-            )
-
-            assert result.total_count == 100
-            assert len(result.data) == 1
-            assert result.data[0].prefecture == "東京都"
-
-    @pytest.mark.asyncio
-    async def test_municipalities_list(self):
-        """市区町村一覧取得のテスト"""
-        mock_response_data = {
-            "data": [
-                {
-                    "prefecture_code": "13",
-                    "prefecture_name": "東京都",
-                    "city_code": "13101",
-                    "city_name": "千代田区"
-                },
-                {
-                    "prefecture_code": "13",
-                    "prefecture_name": "東京都",
-                    "city_code": "13102",
-                    "city_name": "中央区"
-                }
-            ]
-        }
-
-        with patch('reinfolib_mcp.client.ReinfiolibClient._make_request') as mock_request:
-            mock_request.return_value = mock_response_data
-
-            client = ReinfiolibClient(api_key="test_key")
-            result = await client.get_municipalities(
-                prefecture="13",
-                lang=Language.JAPANESE
-            )
-
-            assert len(result) == 2
-            assert result[0].city_name == "千代田区"
-            assert result[1].city_name == "中央区"
-
-    @pytest.mark.asyncio
-    async def test_geojson_response(self):
-        """GeoJSONレスポンスのテスト"""
-        mock_geojson_data = {
-            "type": "FeatureCollection",
-            "features": [
-                {
-                    "type": "Feature",
-                    "geometry": {
-                        "type": "Point",
-                        "coordinates": [139.7514, 35.6851]
-                    },
-                    "properties": {
-                        "price_per_sqm": 500000,
-                        "year": 2023
-                    }
-                }
-            ]
-        }
-
-        with patch('reinfolib_mcp.client.ReinfiolibClient._make_request') as mock_request:
-            mock_request.return_value = mock_geojson_data
-
-            client = ReinfiolibClient(api_key="test_key")
-            result = await client.get_land_price_points(
-                z=11, x=1818, y=806,
-                response_format=ResponseFormat.GEOJSON
-            )
-
-            assert result["type"] == "FeatureCollection"
-            assert len(result["features"]) == 1
-            assert result["features"][0]["properties"]["price_per_sqm"] == 500000
-
-    @pytest.mark.asyncio
-    async def test_authentication_error(self):
-        """認証エラーのテスト"""
-        with patch('reinfolib_mcp.client.ReinfiolibClient._make_request') as mock_request:
-            mock_request.side_effect = AuthenticationError("APIキーが無効です")
-
-            client = ReinfiolibClient(api_key="invalid_key")
-
-            with pytest.raises(AuthenticationError):
-                await client.search_real_estate_transactions(prefecture="13")
-
-    @pytest.mark.asyncio
-    async def test_invalid_parameter_error(self):
-        """パラメータエラーのテスト"""
-        with patch('reinfolib_mcp.client.ReinfiolibClient._make_request') as mock_request:
-            mock_request.side_effect = InvalidParameterError("リクエストパラメータが不正です")
-
-            client = ReinfiolibClient(api_key="test_key")
-
-            with pytest.raises(InvalidParameterError):
-                await client.search_real_estate_transactions(prefecture="invalid")
-
-    @pytest.mark.asyncio
-    async def test_not_found_error(self):
-        """404エラーのテスト"""
-        with patch('reinfolib_mcp.client.ReinfiolibClient._make_request') as mock_request:
-            mock_request.side_effect = NotFoundError("指定されたリソースが見つかりません")
-
-            client = ReinfiolibClient(api_key="test_key")
-
-            with pytest.raises(NotFoundError):
-                await client.get_municipalities(prefecture="99")
-
-    @pytest.mark.asyncio
-    async def test_rate_limit_error(self):
-        """レート制限エラーのテスト"""
-        with patch('reinfolib_mcp.client.ReinfiolibClient._make_request') as mock_request:
-            mock_request.side_effect = RateLimitError("レート制限に達しました")
-
-            client = ReinfiolibClient(api_key="test_key")
-
-            with pytest.raises(RateLimitError):
-                await client.search_real_estate_transactions(prefecture="13")
-
-    @pytest.mark.asyncio
-    async def test_server_error(self):
-        """サーバーエラーのテスト"""
-        with patch('reinfolib_mcp.client.ReinfiolibClient._make_request') as mock_request:
-            mock_request.side_effect = ServerError("サーバーエラー: 500")
-
-            client = ReinfiolibClient(api_key="test_key")
-
-            with pytest.raises(ServerError):
-                await client.get_land_price_points(z=11, x=1818, y=806)
-
-    @pytest.mark.asyncio
-    async def test_network_error(self):
-        """ネットワークエラーのテスト"""
-        with patch('reinfolib_mcp.client.ReinfiolibClient._make_request') as mock_request:
-            mock_request.side_effect = NetworkError("接続エラー: Connection failed")
-
-            client = ReinfiolibClient(api_key="test_key")
-
-            with pytest.raises(NetworkError):
-                await client.search_real_estate_transactions(prefecture="13")
-
-    @pytest.mark.asyncio
-    async def test_appraisal_info(self):
-        """鑑定評価書情報取得のテスト"""
-        mock_response_data = {
-            "data": [
-                {
-                    "prefecture": "東京都",
-                    "city": "千代田区",
-                    "appraisal_date": "2023-01-01",
-                    "price": 1000000
-                }
-            ]
-        }
-
-        with patch('reinfolib_mcp.client.ReinfiolibClient._make_request') as mock_request:
-            mock_request.return_value = mock_response_data
-
-            client = ReinfiolibClient(api_key="test_key")
-            result = await client.get_appraisal_info(
-                prefecture="13",
-                city="13101"
-            )
-
-            assert result["data"][0]["prefecture"] == "東京都"
-            assert result["data"][0]["city"] == "千代田区"
-
-    @pytest.mark.asyncio
-    async def test_real_estate_points(self):
-        """不動産価格ポイント情報取得のテスト"""
-        mock_geojson_data = {
-            "type": "FeatureCollection",
-            "features": [
-                {
-                    "type": "Feature",
-                    "geometry": {
-                        "type": "Point",
-                        "coordinates": [139.7514, 35.6851]
-                    },
-                    "properties": {
-                        "transaction_price": 50000000,
-                        "area": 100.5
-                    }
-                }
-            ]
-        }
-
-        with patch('reinfolib_mcp.client.ReinfiolibClient._make_request') as mock_request:
-            mock_request.return_value = mock_geojson_data
-
-            client = ReinfiolibClient(api_key="test_key")
-            result = await client.get_real_estate_points(
-                z=11, x=1818, y=806
-            )
-
-            assert result["type"] == "FeatureCollection"
-            assert len(result["features"]) == 1
-
-    @pytest.mark.asyncio
-    async def test_elementary_school_districts(self):
-        """小学校区情報取得のテスト"""
-        mock_geojson_data = {
-            "type": "FeatureCollection",
-            "features": [
-                {
-                    "type": "Feature",
-                    "properties": {
-                        "school_name": "千代田区立麹町小学校",
-                        "district_name": "麹町小学校区"
-                    }
-                }
-            ]
-        }
-
-        with patch('reinfolib_mcp.client.ReinfiolibClient._make_request') as mock_request:
-            mock_request.return_value = mock_geojson_data
-
-            client = ReinfiolibClient(api_key="test_key")
-            result = await client.get_elementary_school_districts(
-                z=12, x=3636, y=1612
-            )
-
-            assert result["type"] == "FeatureCollection"
-            assert result["features"][0]["properties"]["school_name"] == "千代田区立麹町小学校"
-
-    @pytest.mark.asyncio
-    async def test_welfare_facilities(self):
-        """福祉施設情報取得のテスト"""
-        mock_geojson_data = {
-            "type": "FeatureCollection",
-            "features": [
-                {
-                    "type": "Feature",
-                    "properties": {
-                        "facility_name": "千代田区社会福祉協議会",
-                        "facility_type": "社会福祉施設"
-                    }
-                }
-            ]
-        }
-
-        with patch('reinfolib_mcp.client.ReinfiolibClient._make_request') as mock_request:
-            mock_request.return_value = mock_geojson_data
-
-            client = ReinfiolibClient(api_key="test_key")
-            result = await client.get_welfare_facilities(
-                z=12, x=3636, y=1612
-            )
-
-            assert result["type"] == "FeatureCollection"
-            assert result["features"][0]["properties"]["facility_name"] == "千代田区社会福祉協議会"
-
-    @pytest.mark.asyncio
-    async def test_context_manager(self):
-        """コンテキストマネージャーのテスト"""
-        with patch('reinfolib_mcp.client.httpx.AsyncClient') as mock_client:
-            mock_instance = AsyncMock()
-            mock_client.return_value = mock_instance
-            mock_instance.__aenter__.return_value = mock_instance
-            mock_instance.__aexit__.return_value = None
-            mock_instance.aclose = AsyncMock()
-
-            async with ReinfiolibClient(api_key="test_key") as client:
-                assert client.api_key == "test_key"
-
-            # acloseが呼ばれることを確認
-            mock_instance.aclose.assert_called_once()
-
-
-class TestSyncReinfiolibClient:
-    """同期APIクライアントのテスト"""
-
-    def test_sync_client_initialization(self):
-        """同期クライアントの初期化"""
-        with patch('reinfolib_mcp.client.ReinfiolibClient') as mock_async_client:
-            mock_async_client.return_value = MagicMock()
-
-            client = SyncReinfiolibClient(api_key="test_key")
-            assert client._async_client is not None
-
-    def test_sync_search_real_estate_transactions(self):
-        """同期版不動産検索のテスト"""
-        from reinfolib_mcp.models import RealEstateSearchResult
-        mock_result = RealEstateSearchResult(total_count=50, data=[])
-
-        with patch('reinfolib_mcp.client.ReinfiolibClient') as mock_async_client:
-            mock_instance = MagicMock()
-            mock_instance.search_real_estate_transactions.return_value = mock_result
-            mock_async_client.return_value = mock_instance
-
-            with patch('asyncio.run') as mock_run:
-                mock_run.return_value = mock_result
-
-                client = SyncReinfiolibClient(api_key="test_key")
-                result = client.search_real_estate_transactions(prefecture="13")
-
-                assert result.total_count == 50
-                mock_run.assert_called_once()
-
-    def test_sync_get_municipalities(self):
-        """同期版市区町村一覧取得のテスト"""
-        mock_result = [{"city_name": "千代田区"}, {"city_name": "中央区"}]
-
-        with patch('reinfolib_mcp.client.ReinfiolibClient') as mock_async_client:
-            mock_instance = MagicMock()
-            mock_instance.get_municipalities.return_value = mock_result
-            mock_async_client.return_value = mock_instance
-
-            with patch('asyncio.run') as mock_run:
-                mock_run.return_value = mock_result
-
-                client = SyncReinfiolibClient(api_key="test_key")
-                result = client.get_municipalities(prefecture="13")
-
-                assert result == mock_result
-                mock_run.assert_called_once()
-
-    def test_sync_get_appraisal_info(self):
-        """同期版鑑定評価書情報取得のテスト"""
-        mock_result = {"data": [{"prefecture": "東京都", "city": "千代田区"}]}
-
-        with patch('reinfolib_mcp.client.ReinfiolibClient') as mock_async_client:
-            mock_instance = MagicMock()
-            mock_instance.get_appraisal_info.return_value = mock_result
-            mock_async_client.return_value = mock_instance
-
-            with patch('asyncio.run') as mock_run:
-                mock_run.return_value = mock_result
-
-                client = SyncReinfiolibClient(api_key="test_key")
-                result = client.get_appraisal_info(prefecture="13")
-
-                assert result == mock_result
-                mock_run.assert_called_once()
-
-    def test_sync_get_elementary_school_districts(self):
-        """同期版小学校区情報取得のテスト"""
-        mock_result = {
-            "type": "FeatureCollection",
-            "features": [{"properties": {"school_name": "テスト小学校"}}]
-        }
-
-        with patch('reinfolib_mcp.client.ReinfiolibClient') as mock_async_client:
-            mock_instance = MagicMock()
-            mock_instance.get_elementary_school_districts.return_value = mock_result
-            mock_async_client.return_value = mock_instance
-
-            with patch('asyncio.run') as mock_run:
-                mock_run.return_value = mock_result
-
-                client = SyncReinfiolibClient(api_key="test_key")
-                result = client.get_elementary_school_districts(z=12, x=3636, y=1612)
-
-                assert result == mock_result
-                mock_run.assert_called_once()
-
-    def test_sync_context_manager(self):
-        """同期版コンテキストマネージャーのテスト"""
-        with patch('reinfolib_mcp.client.ReinfiolibClient') as mock_async_client:
-            # 同期版テストなので通常のMockで十分
-            mock_instance = MagicMock()
-            mock_async_client.return_value = mock_instance
-
-            with patch('asyncio.run') as mock_run:
-                with SyncReinfiolibClient(api_key="test_key") as client:
-                    assert client is not None
-
-                # closeが呼ばれることを確認
-                mock_run.assert_called_once()
+    with pytest.raises(InvalidParameterError, match="廃止"):
+        await client.request_api("XIT003")
+    await client.close()
+
+
+@pytest.mark.asyncio
+async def test_http_authentication_error_keeps_specific_type() -> None:
+    client = ReinfiolibClient(api_key="invalid")
+    response = AsyncMock(status_code=401)
+    client._client.get = AsyncMock(return_value=response)
+    with pytest.raises(AuthenticationError):
+        await client._make_request("/XIT002", {"area": "13"})
+    await client.close()
+
+
+def test_sync_client_delegates_to_async_client() -> None:
+    with patch("reinfolib_mcp.client.ReinfiolibClient") as async_client:
+        async_client.return_value.get_municipalities.return_value = [{"id": "13101"}]
+        with patch(
+            "reinfolib_mcp.client.asyncio.run", return_value=[{"id": "13101"}]
+        ) as run:
+            client = SyncReinfiolibClient(api_key="test")
+            assert client.get_municipalities(area="13") == [{"id": "13101"}]
+            run.assert_called_once()

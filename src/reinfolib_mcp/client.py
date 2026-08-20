@@ -1,18 +1,14 @@
-"""
-不動産情報ライブラリAPIクライアント実装
-
-国土交通省の不動産情報ライブラリAPIにアクセスするためのクライアントライブラリ
-公式API仕様: https://www.reinfolib.mlit.go.jp/help/apiManual/
-"""
+"""不動産情報ライブラリの現行公開APIクライアント。"""
 
 import asyncio
 import os
+from dataclasses import dataclass
 from typing import Any
-from urllib.parse import urljoin
 
 import httpx
 from asyncio_throttle import Throttler
 
+from . import __version__
 from .exceptions import (
     AuthenticationError,
     DataFormatError,
@@ -24,69 +20,115 @@ from .exceptions import (
     ServerError,
     TimeoutError,
 )
-from .models import (
-    Language,
-    Municipality,
-    RealEstateSearchResult,
-    ResponseFormat,
-    TileCoordinates,
-)
+from .models import Language, ResponseFormat, TileCoordinates
+
+
+@dataclass(frozen=True)
+class APIContract:
+    """公式マニュアルに記載されたAPI名と入力パラメータ。"""
+
+    title: str
+    required: frozenset[str]
+    optional: frozenset[str] = frozenset()
+    one_of: frozenset[str] = frozenset()
+
+    @property
+    def parameters(self) -> frozenset[str]:
+        return self.required | self.optional | self.one_of
+
+
+def _contract(
+    title: str,
+    required: tuple[str, ...],
+    optional: tuple[str, ...] = (),
+    one_of: tuple[str, ...] = (),
+) -> APIContract:
+    return APIContract(
+        title=title,
+        required=frozenset(required),
+        optional=frozenset(optional),
+        one_of=frozenset(one_of),
+    )
+
+
+_TILE_REQUIRED = ("response_format", "z", "x", "y")
+
+# 公式公開API一覧（2026-08-20確認）を正とする。
+API_CONTRACTS: dict[str, APIContract] = {
+    "XIT001": _contract(
+        "不動産価格（取引価格・成約価格）情報取得API",
+        ("year",),
+        ("priceClassification", "quarter", "language"),
+        ("area", "city", "station"),
+    ),
+    "XIT002": _contract("都道府県内市区町村一覧取得API", ("area",), ("language",)),
+    "XCT001": _contract("鑑定評価書情報API", ("year", "area", "division")),
+    "XPT001": _contract(
+        "不動産価格情報のポイントAPI",
+        (*_TILE_REQUIRED, "from", "to"),
+        ("priceClassification", "landTypeCode"),
+    ),
+    "XPT002": _contract(
+        "地価公示・地価調査のポイントAPI",
+        (*_TILE_REQUIRED, "year"),
+        ("priceClassification", "useCategoryCode"),
+    ),
+    "XKT001": _contract("都市計画区域・区域区分API", _TILE_REQUIRED),
+    "XKT002": _contract("用途地域API", _TILE_REQUIRED),
+    "XKT003": _contract("立地適正化計画API", _TILE_REQUIRED),
+    "XKT004": _contract("小学校区API", _TILE_REQUIRED, ("administrativeAreaCode",)),
+    "XKT005": _contract("中学校区API", _TILE_REQUIRED, ("administrativeAreaCode",)),
+    "XKT006": _contract("学校API", _TILE_REQUIRED),
+    "XKT007": _contract("保育園・幼稚園等API", _TILE_REQUIRED),
+    "XKT010": _contract("医療機関API", _TILE_REQUIRED),
+    "XKT011": _contract(
+        "福祉施設API",
+        _TILE_REQUIRED,
+        (
+            "administrativeAreaCode",
+            "welfareFacilityClassCode",
+            "welfareFacilityMiddleClassCode",
+            "welfareFacilityMinorClassCode",
+        ),
+    ),
+    "XKT013": _contract("将来推計人口250mメッシュAPI", _TILE_REQUIRED),
+    "XKT014": _contract("防火・準防火地域API", _TILE_REQUIRED),
+    "XKT015": _contract("駅別乗降客数API", _TILE_REQUIRED),
+    "XKT016": _contract("災害危険区域API", _TILE_REQUIRED, ("administrativeAreaCode",)),
+    "XKT017": _contract("図書館API", _TILE_REQUIRED, ("administrativeAreaCode",)),
+    "XKT018": _contract("市区町村役場及び集会施設等API", _TILE_REQUIRED),
+    "XKT019": _contract(
+        "自然公園地域API", _TILE_REQUIRED, ("prefectureCode", "districtCode")
+    ),
+    "XKT020": _contract("大規模盛土造成地マップAPI", _TILE_REQUIRED),
+    "XKT021": _contract(
+        "地すべり防止地区API",
+        _TILE_REQUIRED,
+        ("prefectureCode", "administrativeAreaCode"),
+    ),
+    "XKT022": _contract(
+        "急傾斜地崩壊危険区域API",
+        _TILE_REQUIRED,
+        ("prefectureCode", "administrativeAreaCode"),
+    ),
+    "XKT023": _contract("地区計画API", _TILE_REQUIRED),
+    "XKT024": _contract("高度利用地区API", _TILE_REQUIRED),
+    "XKT025": _contract("液状化の発生傾向図API", _TILE_REQUIRED),
+    "XKT026": _contract("洪水浸水想定区域API", _TILE_REQUIRED),
+    "XKT027": _contract("高潮浸水想定区域API", _TILE_REQUIRED),
+    "XKT028": _contract("津波浸水想定API", _TILE_REQUIRED),
+    "XKT029": _contract("土砂災害警戒区域API", _TILE_REQUIRED),
+    "XKT030": _contract("都市計画道路API", _TILE_REQUIRED),
+    "XKT031": _contract("人口集中地区API", _TILE_REQUIRED, ("administrativeAreaCode",)),
+    "XGT001": _contract("指定緊急避難場所API", _TILE_REQUIRED),
+    "XST001": _contract("災害履歴API", _TILE_REQUIRED, ("disastertype_code",)),
+}
 
 
 class ReinfiolibClient:
-    """
-    不動産情報ライブラリAPI非同期クライアント
+    """国土交通省 不動産情報ライブラリAPIの非同期クライアント。"""
 
-    公式API仕様に基づく30種類のAPIエンドポイントをサポート
-    """
-
-    # APIエンドポイント定義（公式マニュアルに準拠）
-    ENDPOINTS = {
-        # 不動産価格情報系
-        "real_estate_transactions": "/XIT001",      # 不動産価格（取引価格・成約価格）情報取得API
-        "municipalities": "/XIT002",                # 都道府県内市区町村一覧取得API
-        "appraisal_info": "/XIT003",               # 鑑定評価書情報API
-        "real_estate_points": "/XIT004",           # 不動産価格情報のポイント (点) API
-        "land_price_points": "/XIT005",            # 地価公示・地価調査のポイント（点）API
-
-        # 都市計画決定GISデータ系
-        "urban_planning_area": "/XKT001",          # 都市計画区域/区域区分
-        "land_use_zones": "/XKT002",               # 用途地域
-        "location_optimization_plan": "/XKT003",   # 立地適正化計画
-        "fire_prevention_areas": "/XKT004",        # 防火・準防火地域
-        "district_plan": "/XKT005",                # 地区計画
-        "intensive_use_district": "/XKT006",       # 高度利用地区
-
-        # 国土数値情報系（教育・文化施設）
-        "elementary_school_districts": "/XKT007",  # 小学校区
-        "junior_high_school_districts": "/XKT008", # 中学校区
-        "schools": "/XKT009",                      # 学校
-        "kindergartens": "/XKT010",                # 保育園・幼稚園等
-        "libraries": "/XKT022",                    # 図書館
-
-        # 国土数値情報系（医療・福祉施設）
-        "medical_facilities": "/XKT011",           # 医療機関
-        "welfare_facilities": "/XKT012",           # 福祉施設
-
-        # 国土数値情報系（交通インフラ）
-        "station_passenger_data": "/XKT020",       # 駅別乗降客数
-
-        # 国土数値情報系（人口・統計）
-        "population_mesh": "/XKT013",              # 将来推計人口250mメッシュ
-
-        # 国土数値情報系（公共・行政施設）
-        "municipal_facilities": "/XKT023",         # 市区町村役場及び集会施設等
-
-        # 国土数値情報系（災害・防災情報）
-        "disaster_risk_areas": "/XKT021",          # 災害危険区域
-        "large_scale_fill": "/XKT025",             # 大規模盛土造成地マップ
-        "landslide_prevention": "/XKT026",         # 地すべり防止地区
-        "steep_slope_collapse": "/XKT027",         # 急傾斜地崩壊危険区域
-        "liquefaction_tendency": "/XKT028",        # 地形区分に基づく液状化の発生傾向図
-
-        # 国土数値情報系（自然・環境）
-        "natural_parks": "/XKT024",                # 自然公園地域
-    }
+    ENDPOINTS = {api_id: f"/{api_id}" for api_id in API_CONTRACTS}
 
     def __init__(
         self,
@@ -96,51 +138,30 @@ class ReinfiolibClient:
         max_retries: int = 3,
         rate_limit_per_minute: int = 60,
     ) -> None:
-        """
-        クライアントを初期化します。
-
-        Args:
-            api_key: APIキー（Noneの場合は環境変数REINFOLIB_API_KEYを使用）
-            base_url: APIベースURL
-            timeout: リクエストタイムアウト（秒）
-            max_retries: 最大リトライ回数
-            rate_limit_per_minute: 1分間あたりのリクエスト制限数
-
-        Raises:
-            ConfigurationError: APIキーが設定されていない場合
-        """
         self.api_key = api_key or os.getenv("REINFOLIB_API_KEY")
         if not self.api_key:
             raise ReinfiolibAPIError(
-                "APIキーが設定されていません。引数で指定するか、環境変数REINFOLIB_API_KEYを設定してください。"
+                "APIキーが設定されていません。引数またはREINFOLIB_API_KEYで設定してください。"
             )
-
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self.max_retries = max_retries
-
-        # HTTPクライアント設定
         self._client = httpx.AsyncClient(
             headers={
                 "Ocp-Apim-Subscription-Key": self.api_key,
-                "User-Agent": "reinfolib-mcp/0.1.0",
+                "User-Agent": f"reinfolib-mcp/{__version__}",
             },
             timeout=httpx.Timeout(timeout),
         )
-
-        # レート制限設定
         self._throttler = Throttler(rate_limit=rate_limit_per_minute, period=60.0)
 
     async def __aenter__(self) -> "ReinfiolibClient":
-        """非同期コンテキストマネージャー開始"""
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
-        """非同期コンテキストマネージャー終了"""
         await self.close()
 
     async def close(self) -> None:
-        """クライアントを閉じます"""
         await self._client.aclose()
 
     async def _make_request(
@@ -148,258 +169,165 @@ class ReinfiolibClient:
         endpoint: str,
         params: dict[str, Any] | None = None,
         retries: int = 0,
-    ) -> dict[str, Any]:
-        """
-        APIリクエストを実行します（内部メソッド）
-
-        Args:
-            endpoint: APIエンドポイント
-            params: リクエストパラメータ
-            retries: 現在のリトライ回数
-
-        Returns:
-            Dict[str, Any]: APIレスポンス
-
-        Raises:
-            ReinfiolibAPIError: APIエラーが発生した場合
-        """
-        # レート制限適用
+    ) -> Any:
         async with self._throttler:
             try:
-                url = urljoin(self.base_url, endpoint)
-                response = await self._client.get(url, params=params)
-
-                # ステータスコード別エラーハンドリング
+                response = await self._client.get(
+                    f"{self.base_url}/{endpoint.lstrip('/')}", params=params
+                )
                 if response.status_code == 200:
+                    if params and params.get("response_format") == "pbf":
+                        return {"data": response.content, "format": "pbf"}
                     try:
                         return response.json()
-                    except Exception as e:
-                        # バイナリレスポンス（PBF）の場合
-                        if params and params.get("response_format") == "pbf":
-                            return {"data": response.content, "format": "pbf"}
-                        raise DataFormatError(f"レスポンスのパース失敗: {e}") from e
-
-                elif response.status_code == 401:
-                    raise AuthenticationError("APIキーが無効です")
-
-                elif response.status_code == 400:
+                    except ValueError as exc:
+                        raise DataFormatError(
+                            f"レスポンスのJSON解析に失敗しました: {exc}"
+                        ) from exc
+                if response.status_code == 400:
                     raise InvalidParameterError("リクエストパラメータが不正です")
-
-                elif response.status_code == 404:
-                    raise NotFoundError("指定されたリソースが見つかりません")
-
-                elif response.status_code == 429:
+                if response.status_code == 401:
+                    raise AuthenticationError("APIキーが無効です")
+                if response.status_code == 404:
+                    raise NotFoundError("指定されたデータが見つかりません")
+                if response.status_code == 429:
                     raise RateLimitError("レート制限に達しました")
-
-                elif response.status_code >= 500:
+                if response.status_code >= 500:
                     raise ServerError(f"サーバーエラー: {response.status_code}")
-
-                else:
-                    raise ReinfiolibAPIError(
-                        f"APIエラー: {response.status_code}",
-                        status_code=response.status_code
-                    )
-
-            except httpx.ConnectError as e:
-                raise NetworkError(f"接続エラー: {e}") from e
-
-            except httpx.TimeoutException as e:
+                raise ReinfiolibAPIError(
+                    f"APIエラー: {response.status_code}",
+                    status_code=response.status_code,
+                )
+            except ReinfiolibAPIError:
+                raise
+            except httpx.TimeoutException as exc:
                 if retries < self.max_retries:
-                    await asyncio.sleep(2 ** retries)  # Exponential backoff
+                    await asyncio.sleep(2**retries)
                     return await self._make_request(endpoint, params, retries + 1)
-                raise TimeoutError(f"リクエストタイムアウト: {e}") from e
+                raise TimeoutError(f"リクエストタイムアウト: {exc}") from exc
+            except httpx.HTTPError as exc:
+                raise NetworkError(f"接続エラー: {exc}") from exc
 
-            except Exception as e:
-                raise ReinfiolibAPIError(f"予期しないエラー: {e}") from e
+    async def request_api(self, api_id: str, **params: Any) -> Any:
+        """API IDと公式パラメータ名を指定して任意の公開APIを呼び出す。"""
 
-    # === 不動産価格情報API ===
-
-    async def get_appraisal_info(
-        self,
-        prefecture: str | None = None,
-        city: str | None = None,
-        response_format: ResponseFormat = ResponseFormat.JSON,
-        lang: Language = Language.JAPANESE,
-    ) -> dict[str, Any]:
-        """
-        鑑定評価書情報を取得します（XIT003）
-
-        Args:
-            prefecture: 都道府県コード（01-47）
-            city: 市区町村コード
-            response_format: レスポンス形式
-            lang: 言語（日本語/英語）
-
-        Returns:
-            Dict[str, Any]: 鑑定評価書情報
-        """
-        params = {
-            "response_format": response_format.value,
-            "lang": lang.value,
+        api_id = api_id.upper()
+        contract = API_CONTRACTS.get(api_id)
+        if contract is None:
+            raise InvalidParameterError(f"未公開または廃止されたAPI IDです: {api_id}")
+        clean_params = {
+            key: value for key, value in params.items() if value is not None
         }
+        unknown = set(clean_params) - contract.parameters
+        if unknown:
+            raise InvalidParameterError(
+                f"{api_id}で使用できないパラメータです: {', '.join(sorted(unknown))}"
+            )
+        missing = contract.required - set(clean_params)
+        if missing:
+            raise InvalidParameterError(
+                f"{api_id}の必須パラメータがありません: {', '.join(sorted(missing))}"
+            )
+        if contract.one_of and not contract.one_of.intersection(clean_params):
+            raise InvalidParameterError(
+                f"{api_id}では次のいずれかが必要です: "
+                f"{', '.join(sorted(contract.one_of))}"
+            )
+        return await self._make_request(self.ENDPOINTS[api_id], clean_params)
 
-        # オプションパラメータ追加
-        for key, value in {
-            "prefecture": prefecture,
-            "city": city,
-        }.items():
-            if value is not None:
-                params[key] = value
-
-        return await self._make_request(
-            self.ENDPOINTS["appraisal_info"],
-            params
+    async def _tile_request(
+        self,
+        api_id: str,
+        z: int,
+        x: int,
+        y: int,
+        response_format: ResponseFormat,
+        **params: Any,
+    ) -> Any:
+        coords = TileCoordinates(z=z, x=x, y=y)
+        return await self.request_api(
+            api_id,
+            response_format=response_format.value,
+            z=coords.z,
+            x=coords.x,
+            y=coords.y,
+            **params,
         )
+
+    async def search_real_estate_transactions(
+        self,
+        year: int,
+        quarter: int | None = None,
+        area: str | None = None,
+        city: str | None = None,
+        station: str | None = None,
+        price_classification: str | None = None,
+        lang: Language = Language.JAPANESE,
+    ) -> Any:
+        return await self.request_api(
+            "XIT001",
+            year=year,
+            quarter=quarter,
+            area=area,
+            city=city,
+            station=station,
+            priceClassification=price_classification,
+            language=lang.value,
+        )
+
+    async def get_municipalities(
+        self, area: str, lang: Language = Language.JAPANESE
+    ) -> Any:
+        return await self.request_api("XIT002", area=area, language=lang.value)
+
+    async def get_appraisal_info(self, year: int, area: str, division: str) -> Any:
+        return await self.request_api("XCT001", year=year, area=area, division=division)
 
     async def get_real_estate_points(
         self,
         z: int,
         x: int,
         y: int,
+        from_period: str,
+        to_period: str,
         response_format: ResponseFormat = ResponseFormat.GEOJSON,
-    ) -> dict[str, Any]:
-        """
-        不動産価格情報のポイント（点）を取得します（XIT004）
-
-        Args:
-            z: ズームレベル
-            x: タイルX座標
-            y: タイルY座標
-            response_format: レスポンス形式
-
-        Returns:
-            Dict[str, Any]: 不動産価格ポイント情報
-        """
-        coords = TileCoordinates(z=z, x=x, y=y)
-
-        params = {
-            "response_format": response_format.value,
-            "z": coords.z,
-            "x": coords.x,
-            "y": coords.y,
-        }
-
-        return await self._make_request(
-            self.ENDPOINTS["real_estate_points"],
-            params
+        price_classification: str | None = None,
+        land_type_code: str | None = None,
+    ) -> Any:
+        return await self._tile_request(
+            "XPT001",
+            z,
+            x,
+            y,
+            response_format,
+            **{
+                "from": from_period,
+                "to": to_period,
+                "priceClassification": price_classification,
+                "landTypeCode": land_type_code,
+            },
         )
-
-    async def search_real_estate_transactions(
-        self,
-        prefecture: str | None = None,
-        city: str | None = None,
-        from_date: str | None = None,
-        to_date: str | None = None,
-        property_type: str | None = None,
-        response_format: ResponseFormat = ResponseFormat.JSON,
-        lang: Language = Language.JAPANESE,
-    ) -> dict[str, Any] | RealEstateSearchResult:
-        """
-        不動産取引価格情報を検索します（XIT001）
-
-        Args:
-            prefecture: 都道府県コード（01-47）
-            city: 市区町村コード
-            from_date: 取引時期開始（YYYYMMDD形式）
-            to_date: 取引時期終了（YYYYMMDD形式）
-            property_type: 不動産種別（1:宅地、2:中古マンション等）
-            response_format: レスポンス形式
-            lang: 言語（日本語/英語）
-
-        Returns:
-            Union[Dict[str, Any], RealEstateSearchResult]: 検索結果
-        """
-        params = {
-            "response_format": response_format.value,
-            "lang": lang.value,
-        }
-
-        # オプションパラメータ追加
-        for key, value in {
-            "prefecture": prefecture,
-            "city": city,
-            "from": from_date,
-            "to": to_date,
-            "type": property_type,
-        }.items():
-            if value is not None:
-                params[key] = value
-
-        result = await self._make_request(
-            self.ENDPOINTS["real_estate_transactions"],
-            params
-        )
-
-        # JSON形式の場合はPydanticモデルに変換
-        if response_format == ResponseFormat.JSON:
-            return RealEstateSearchResult(**result)
-
-        return result
-
-    async def get_municipalities(
-        self,
-        prefecture: str,
-        lang: Language = Language.JAPANESE,
-    ) -> list[Municipality]:
-        """
-        指定都道府県の市区町村一覧を取得します（XIT002）
-
-        Args:
-            prefecture: 都道府県コード（01-47）
-            lang: 言語（日本語/英語）
-
-        Returns:
-            List[Municipality]: 市区町村情報リスト
-        """
-        params = {
-            "response_format": "json",
-            "prefecture": prefecture,
-            "lang": lang.value,
-        }
-
-        result = await self._make_request(
-            self.ENDPOINTS["municipalities"],
-            params
-        )
-
-        return [Municipality(**item) for item in result.get("data", [])]
-
-    # === 地価情報API ===
 
     async def get_land_price_points(
         self,
         z: int,
         x: int,
         y: int,
+        year: int,
         response_format: ResponseFormat = ResponseFormat.GEOJSON,
-    ) -> dict[str, Any]:
-        """
-        地価公示・地価調査のポイント情報を取得します（XIT005）
-
-        Args:
-            z: ズームレベル
-            x: タイルX座標
-            y: タイルY座標
-            response_format: レスポンス形式
-
-        Returns:
-            Dict[str, Any]: 地価ポイント情報
-        """
-        coords = TileCoordinates(z=z, x=x, y=y)
-
-        params = {
-            "response_format": response_format.value,
-            "z": coords.z,
-            "x": coords.x,
-            "y": coords.y,
-        }
-
-        return await self._make_request(
-            self.ENDPOINTS["land_price_points"],
-            params
+        price_classification: str | None = None,
+        use_category_code: str | None = None,
+    ) -> Any:
+        return await self._tile_request(
+            "XPT002",
+            z,
+            x,
+            y,
+            response_format,
+            year=year,
+            priceClassification=price_classification,
+            useCategoryCode=use_category_code,
         )
-
-    # === 都市計画情報API ===
 
     async def get_urban_planning_area(
         self,
@@ -407,32 +335,8 @@ class ReinfiolibClient:
         x: int,
         y: int,
         response_format: ResponseFormat = ResponseFormat.GEOJSON,
-    ) -> dict[str, Any]:
-        """
-        都市計画区域/区域区分情報を取得します（XKT001）
-
-        Args:
-            z: ズームレベル
-            x: タイルX座標
-            y: タイルY座標
-            response_format: レスポンス形式
-
-        Returns:
-            Dict[str, Any]: 都市計画区域情報
-        """
-        coords = TileCoordinates(z=z, x=x, y=y)
-
-        params = {
-            "response_format": response_format.value,
-            "z": coords.z,
-            "x": coords.x,
-            "y": coords.y,
-        }
-
-        return await self._make_request(
-            self.ENDPOINTS["urban_planning_area"],
-            params
-        )
+    ) -> Any:
+        return await self._tile_request("XKT001", z, x, y, response_format)
 
     async def get_land_use_zones(
         self,
@@ -440,102 +344,8 @@ class ReinfiolibClient:
         x: int,
         y: int,
         response_format: ResponseFormat = ResponseFormat.GEOJSON,
-    ) -> dict[str, Any]:
-        """
-        用途地域情報を取得します（XKT002）
-
-        Args:
-            z: ズームレベル
-            x: タイルX座標
-            y: タイルY座標
-            response_format: レスポンス形式
-
-        Returns:
-            Dict[str, Any]: 用途地域情報
-        """
-        coords = TileCoordinates(z=z, x=x, y=y)
-
-        params = {
-            "response_format": response_format.value,
-            "z": coords.z,
-            "x": coords.x,
-            "y": coords.y,
-        }
-
-        return await self._make_request(
-            self.ENDPOINTS["land_use_zones"],
-            params
-        )
-
-    # === 施設情報API ===
-
-    async def get_schools(
-        self,
-        z: int,
-        x: int,
-        y: int,
-        response_format: ResponseFormat = ResponseFormat.GEOJSON,
-    ) -> dict[str, Any]:
-        """
-        学校情報を取得します（XKT009）
-
-        Args:
-            z: ズームレベル
-            x: タイルX座標
-            y: タイルY座標
-            response_format: レスポンス形式
-
-        Returns:
-            Dict[str, Any]: 学校情報
-        """
-        coords = TileCoordinates(z=z, x=x, y=y)
-
-        params = {
-            "response_format": response_format.value,
-            "z": coords.z,
-            "x": coords.x,
-            "y": coords.y,
-        }
-
-        return await self._make_request(
-            self.ENDPOINTS["schools"],
-            params
-        )
-
-    async def get_medical_facilities(
-        self,
-        z: int,
-        x: int,
-        y: int,
-        response_format: ResponseFormat = ResponseFormat.GEOJSON,
-    ) -> dict[str, Any]:
-        """
-        医療機関情報を取得します（XKT011）
-
-        Args:
-            z: ズームレベル
-            x: タイルX座標
-            y: タイルY座標
-            response_format: レスポンス形式
-
-        Returns:
-            Dict[str, Any]: 医療機関情報
-        """
-        coords = TileCoordinates(z=z, x=x, y=y)
-
-        params = {
-            "response_format": response_format.value,
-            "z": coords.z,
-            "x": coords.x,
-            "y": coords.y,
-        }
-
-        return await self._make_request(
-            self.ENDPOINTS["medical_facilities"],
-            params
-        )
-
-    # === 教育・文化・福祉施設API ===
+    ) -> Any:
+        return await self._tile_request("XKT002", z, x, y, response_format)
 
     async def get_elementary_school_districts(
         self,
@@ -543,31 +353,15 @@ class ReinfiolibClient:
         x: int,
         y: int,
         response_format: ResponseFormat = ResponseFormat.GEOJSON,
-    ) -> dict[str, Any]:
-        """
-        小学校区情報を取得します（XKT007）
-
-        Args:
-            z: ズームレベル
-            x: タイルX座標
-            y: タイルY座標
-            response_format: レスポンス形式
-
-        Returns:
-            Dict[str, Any]: 小学校区情報
-        """
-        coords = TileCoordinates(z=z, x=x, y=y)
-
-        params = {
-            "response_format": response_format.value,
-            "z": coords.z,
-            "x": coords.x,
-            "y": coords.y,
-        }
-
-        return await self._make_request(
-            self.ENDPOINTS["elementary_school_districts"],
-            params
+        administrative_area_code: str | None = None,
+    ) -> Any:
+        return await self._tile_request(
+            "XKT004",
+            z,
+            x,
+            y,
+            response_format,
+            administrativeAreaCode=administrative_area_code,
         )
 
     async def get_junior_high_school_districts(
@@ -576,32 +370,25 @@ class ReinfiolibClient:
         x: int,
         y: int,
         response_format: ResponseFormat = ResponseFormat.GEOJSON,
-    ) -> dict[str, Any]:
-        """
-        中学校区情報を取得します（XKT008）
-
-        Args:
-            z: ズームレベル
-            x: タイルX座標
-            y: タイルY座標
-            response_format: レスポンス形式
-
-        Returns:
-            Dict[str, Any]: 中学校区情報
-        """
-        coords = TileCoordinates(z=z, x=x, y=y)
-
-        params = {
-            "response_format": response_format.value,
-            "z": coords.z,
-            "x": coords.x,
-            "y": coords.y,
-        }
-
-        return await self._make_request(
-            self.ENDPOINTS["junior_high_school_districts"],
-            params
+        administrative_area_code: str | None = None,
+    ) -> Any:
+        return await self._tile_request(
+            "XKT005",
+            z,
+            x,
+            y,
+            response_format,
+            administrativeAreaCode=administrative_area_code,
         )
+
+    async def get_schools(
+        self,
+        z: int,
+        x: int,
+        y: int,
+        response_format: ResponseFormat = ResponseFormat.GEOJSON,
+    ) -> Any:
+        return await self._tile_request("XKT006", z, x, y, response_format)
 
     async def get_kindergartens(
         self,
@@ -609,32 +396,17 @@ class ReinfiolibClient:
         x: int,
         y: int,
         response_format: ResponseFormat = ResponseFormat.GEOJSON,
-    ) -> dict[str, Any]:
-        """
-        保育園・幼稚園等情報を取得します（XKT010）
+    ) -> Any:
+        return await self._tile_request("XKT007", z, x, y, response_format)
 
-        Args:
-            z: ズームレベル
-            x: タイルX座標
-            y: タイルY座標
-            response_format: レスポンス形式
-
-        Returns:
-            Dict[str, Any]: 保育園・幼稚園等情報
-        """
-        coords = TileCoordinates(z=z, x=x, y=y)
-
-        params = {
-            "response_format": response_format.value,
-            "z": coords.z,
-            "x": coords.x,
-            "y": coords.y,
-        }
-
-        return await self._make_request(
-            self.ENDPOINTS["kindergartens"],
-            params
-        )
+    async def get_medical_facilities(
+        self,
+        z: int,
+        x: int,
+        y: int,
+        response_format: ResponseFormat = ResponseFormat.GEOJSON,
+    ) -> Any:
+        return await self._tile_request("XKT010", z, x, y, response_format)
 
     async def get_welfare_facilities(
         self,
@@ -642,34 +414,9 @@ class ReinfiolibClient:
         x: int,
         y: int,
         response_format: ResponseFormat = ResponseFormat.GEOJSON,
-    ) -> dict[str, Any]:
-        """
-        福祉施設情報を取得します（XKT012）
-
-        Args:
-            z: ズームレベル
-            x: タイルX座標
-            y: タイルY座標
-            response_format: レスポンス形式
-
-        Returns:
-            Dict[str, Any]: 福祉施設情報
-        """
-        coords = TileCoordinates(z=z, x=x, y=y)
-
-        params = {
-            "response_format": response_format.value,
-            "z": coords.z,
-            "x": coords.x,
-            "y": coords.y,
-        }
-
-        return await self._make_request(
-            self.ENDPOINTS["welfare_facilities"],
-            params
-        )
-
-    # === 災害リスク情報API ===
+        **filters: Any,
+    ) -> Any:
+        return await self._tile_request("XKT011", z, x, y, response_format, **filters)
 
     async def get_disaster_risk_areas(
         self,
@@ -677,31 +424,15 @@ class ReinfiolibClient:
         x: int,
         y: int,
         response_format: ResponseFormat = ResponseFormat.GEOJSON,
-    ) -> dict[str, Any]:
-        """
-        災害危険区域情報を取得します（XKT021）
-
-        Args:
-            z: ズームレベル
-            x: タイルX座標
-            y: タイルY座標
-            response_format: レスポンス形式
-
-        Returns:
-            Dict[str, Any]: 災害危険区域情報
-        """
-        coords = TileCoordinates(z=z, x=x, y=y)
-
-        params = {
-            "response_format": response_format.value,
-            "z": coords.z,
-            "x": coords.x,
-            "y": coords.y,
-        }
-
-        return await self._make_request(
-            self.ENDPOINTS["disaster_risk_areas"],
-            params
+        administrative_area_code: str | None = None,
+    ) -> Any:
+        return await self._tile_request(
+            "XKT016",
+            z,
+            x,
+            y,
+            response_format,
+            administrativeAreaCode=administrative_area_code,
         )
 
     async def get_liquefaction_tendency(
@@ -710,113 +441,72 @@ class ReinfiolibClient:
         x: int,
         y: int,
         response_format: ResponseFormat = ResponseFormat.GEOJSON,
-    ) -> dict[str, Any]:
-        """
-        地形区分に基づく液状化の発生傾向図を取得します（XKT028）
-
-        Args:
-            z: ズームレベル
-            x: タイルX座標
-            y: タイルY座標
-            response_format: レスポンス形式
-
-        Returns:
-            Dict[str, Any]: 液状化発生傾向情報
-        """
-        coords = TileCoordinates(z=z, x=x, y=y)
-
-        params = {
-            "response_format": response_format.value,
-            "z": coords.z,
-            "x": coords.x,
-            "y": coords.y,
-        }
-
-        return await self._make_request(
-            self.ENDPOINTS["liquefaction_tendency"],
-            params
-        )
+    ) -> Any:
+        return await self._tile_request("XKT025", z, x, y, response_format)
 
 
 class SyncReinfiolibClient:
-    """
-    不動産情報ライブラリAPI同期クライアント
+    """同期呼び出しが必要な利用者向けの薄いラッパー。"""
 
-    ReinfiolibClientの同期版ラッパー
-    """
-
-    def __init__(self, **kwargs) -> None:
-        """同期クライアントを初期化します"""
+    def __init__(self, **kwargs: Any) -> None:
         self._async_client = ReinfiolibClient(**kwargs)
 
     def __enter__(self) -> "SyncReinfiolibClient":
-        """同期コンテキストマネージャー開始"""
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
-        """同期コンテキストマネージャー終了"""
         self.close()
 
     def close(self) -> None:
-        """クライアントを閉じます"""
         asyncio.run(self._async_client.close())
 
-    def search_real_estate_transactions(self, **kwargs) -> dict[str, Any] | RealEstateSearchResult:
-        """不動産取引価格情報を検索します（同期版）"""
-        return asyncio.run(self._async_client.search_real_estate_transactions(**kwargs))
+    def _run(self, method: str, **kwargs: Any) -> Any:
+        return asyncio.run(getattr(self._async_client, method)(**kwargs))
 
-    def get_municipalities(self, **kwargs) -> list[Municipality]:
-        """市区町村一覧を取得します（同期版）"""
-        return asyncio.run(self._async_client.get_municipalities(**kwargs))
+    def request_api(self, api_id: str, **params: Any) -> Any:
+        return asyncio.run(self._async_client.request_api(api_id, **params))
 
-    def get_land_price_points(self, **kwargs) -> dict[str, Any]:
-        """地価公示・地価調査のポイント情報を取得します（同期版）"""
-        return asyncio.run(self._async_client.get_land_price_points(**kwargs))
+    def search_real_estate_transactions(self, **kwargs: Any) -> Any:
+        return self._run("search_real_estate_transactions", **kwargs)
 
-    def get_urban_planning_area(self, **kwargs) -> dict[str, Any]:
-        """都市計画区域情報を取得します（同期版）"""
-        return asyncio.run(self._async_client.get_urban_planning_area(**kwargs))
+    def get_municipalities(self, **kwargs: Any) -> Any:
+        return self._run("get_municipalities", **kwargs)
 
-    def get_land_use_zones(self, **kwargs) -> dict[str, Any]:
-        """用途地域情報を取得します（同期版）"""
-        return asyncio.run(self._async_client.get_land_use_zones(**kwargs))
+    def get_appraisal_info(self, **kwargs: Any) -> Any:
+        return self._run("get_appraisal_info", **kwargs)
 
-    def get_schools(self, **kwargs) -> dict[str, Any]:
-        """学校情報を取得します（同期版）"""
-        return asyncio.run(self._async_client.get_schools(**kwargs))
+    def get_real_estate_points(self, **kwargs: Any) -> Any:
+        return self._run("get_real_estate_points", **kwargs)
 
-    def get_medical_facilities(self, **kwargs) -> dict[str, Any]:
-        """医療機関情報を取得します（同期版）"""
-        return asyncio.run(self._async_client.get_medical_facilities(**kwargs))
+    def get_land_price_points(self, **kwargs: Any) -> Any:
+        return self._run("get_land_price_points", **kwargs)
 
-    def get_disaster_risk_areas(self, **kwargs) -> dict[str, Any]:
-        """災害危険区域情報を取得します（同期版）"""
-        return asyncio.run(self._async_client.get_disaster_risk_areas(**kwargs))
+    def get_urban_planning_area(self, **kwargs: Any) -> Any:
+        return self._run("get_urban_planning_area", **kwargs)
 
-    def get_liquefaction_tendency(self, **kwargs) -> dict[str, Any]:
-        """液状化発生傾向情報を取得します（同期版）"""
-        return asyncio.run(self._async_client.get_liquefaction_tendency(**kwargs))
+    def get_land_use_zones(self, **kwargs: Any) -> Any:
+        return self._run("get_land_use_zones", **kwargs)
 
-    def get_appraisal_info(self, **kwargs) -> dict[str, Any]:
-        """鑑定評価書情報を取得します（同期版）"""
-        return asyncio.run(self._async_client.get_appraisal_info(**kwargs))
+    def get_schools(self, **kwargs: Any) -> Any:
+        return self._run("get_schools", **kwargs)
 
-    def get_real_estate_points(self, **kwargs) -> dict[str, Any]:
-        """不動産価格ポイント情報を取得します（同期版）"""
-        return asyncio.run(self._async_client.get_real_estate_points(**kwargs))
+    def get_medical_facilities(self, **kwargs: Any) -> Any:
+        return self._run("get_medical_facilities", **kwargs)
 
-    def get_elementary_school_districts(self, **kwargs) -> dict[str, Any]:
-        """小学校区情報を取得します（同期版）"""
-        return asyncio.run(self._async_client.get_elementary_school_districts(**kwargs))
+    def get_disaster_risk_areas(self, **kwargs: Any) -> Any:
+        return self._run("get_disaster_risk_areas", **kwargs)
 
-    def get_junior_high_school_districts(self, **kwargs) -> dict[str, Any]:
-        """中学校区情報を取得します（同期版）"""
-        return asyncio.run(self._async_client.get_junior_high_school_districts(**kwargs))
+    def get_liquefaction_tendency(self, **kwargs: Any) -> Any:
+        return self._run("get_liquefaction_tendency", **kwargs)
 
-    def get_kindergartens(self, **kwargs) -> dict[str, Any]:
-        """保育園・幼稚園等情報を取得します（同期版）"""
-        return asyncio.run(self._async_client.get_kindergartens(**kwargs))
+    def get_elementary_school_districts(self, **kwargs: Any) -> Any:
+        return self._run("get_elementary_school_districts", **kwargs)
 
-    def get_welfare_facilities(self, **kwargs) -> dict[str, Any]:
-        """福祉施設情報を取得します（同期版）"""
-        return asyncio.run(self._async_client.get_welfare_facilities(**kwargs))
+    def get_junior_high_school_districts(self, **kwargs: Any) -> Any:
+        return self._run("get_junior_high_school_districts", **kwargs)
+
+    def get_kindergartens(self, **kwargs: Any) -> Any:
+        return self._run("get_kindergartens", **kwargs)
+
+    def get_welfare_facilities(self, **kwargs: Any) -> Any:
+        return self._run("get_welfare_facilities", **kwargs)

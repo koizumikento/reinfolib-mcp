@@ -5,11 +5,12 @@
 from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class ResponseFormat(str, Enum):
     """APIレスポンス形式"""
+
     JSON = "json"
     GEOJSON = "geojson"
     PBF = "pbf"  # バイナリベクトルタイル
@@ -17,15 +18,17 @@ class ResponseFormat(str, Enum):
 
 class PropertyType(str, Enum):
     """不動産種別"""
-    RESIDENTIAL_LAND = "1"  # 宅地（土地）
-    USED_MANSION = "2"      # 中古マンション等
-    USED_HOUSE = "3"        # 中古戸建住宅
-    FOREST_LAND = "4"       # 林地
-    AGRICULTURAL_LAND = "5" # 農地
+
+    RESIDENTIAL_LAND = "01"  # 宅地（土地）
+    LAND_AND_BUILDING = "02"  # 宅地（土地と建物）
+    USED_MANSION = "07"  # 中古マンション等
+    AGRICULTURAL_LAND = "10"  # 農地
+    FOREST_LAND = "11"  # 林地
 
 
 class Language(str, Enum):
     """言語設定"""
+
     JAPANESE = "ja"
     ENGLISH = "en"
 
@@ -33,6 +36,7 @@ class Language(str, Enum):
 # 基本レスポンスモデル
 class BaseResponse(BaseModel):
     """APIレスポンスベースモデル"""
+
     status: str = Field(default="success", description="レスポンスステータス")
     message: str | None = Field(None, description="メッセージ")
 
@@ -40,6 +44,7 @@ class BaseResponse(BaseModel):
 # 不動産取引価格情報モデル
 class RealEstateTransaction(BaseModel):
     """不動産取引価格情報モデル"""
+
     prefecture: str = Field(description="都道府県名")
     prefecture_code: str | None = Field(None, description="都道府県コード")
     city: str = Field(description="市区町村名")
@@ -75,7 +80,10 @@ class RealEstateTransaction(BaseModel):
 
 class RealEstateSearchResult(BaseModel):
     """不動産取引価格検索結果モデル"""
-    data: list[RealEstateTransaction] = Field(default_factory=list, description="取引データ")
+
+    data: list[RealEstateTransaction] = Field(
+        default_factory=list, description="取引データ"
+    )
     total_count: int = Field(description="総件数")
     page: int = Field(default=1, description="ページ番号")
     per_page: int = Field(default=100, description="1ページあたりの件数")
@@ -85,6 +93,7 @@ class RealEstateSearchResult(BaseModel):
 # 地価公示・調査モデル
 class LandPricePoint(BaseModel):
     """地価公示・調査ポイントモデル"""
+
     point_name: str = Field(description="地点名")
     point_code: str | None = Field(None, description="地点コード")
     address: str = Field(description="住所")
@@ -113,6 +122,7 @@ class LandPricePoint(BaseModel):
 # 市区町村情報モデル
 class Municipality(BaseModel):
     """市区町村情報モデル"""
+
     prefecture_code: str = Field(description="都道府県コード")
     prefecture_name: str = Field(description="都道府県名")
     city_code: str = Field(description="市区町村コード")
@@ -123,6 +133,7 @@ class Municipality(BaseModel):
 # 都市計画情報モデル
 class UrbanPlanningInfo(BaseModel):
     """都市計画情報モデル"""
+
     area_type: str = Field(description="区域種別")
     area_name: str | None = Field(None, description="区域名")
     designation_date: str | None = Field(None, description="指定年月日")
@@ -136,6 +147,7 @@ class UrbanPlanningInfo(BaseModel):
 # 災害リスク情報モデル
 class DisasterRiskInfo(BaseModel):
     """災害リスク情報モデル"""
+
     risk_type: str = Field(description="災害種別")
     risk_level: str | None = Field(None, description="リスクレベル")
     area_name: str | None = Field(None, description="地域名")
@@ -149,6 +161,7 @@ class DisasterRiskInfo(BaseModel):
 # 施設情報モデル
 class FacilityInfo(BaseModel):
     """施設情報モデル"""
+
     facility_type: str = Field(description="施設種別")
     facility_name: str = Field(description="施設名")
     address: str | None = Field(None, description="住所")
@@ -168,10 +181,11 @@ class FacilityInfo(BaseModel):
 # GeoJSONレスポンス用モデル
 class GeoJSONResponse(BaseModel):
     """GeoJSONレスポンスモデル"""
+
     type: str = Field(default="FeatureCollection")
     features: list[dict[str, Any]] = Field(default_factory=list)
 
-    @field_validator('type')
+    @field_validator("type")
     @classmethod
     def validate_type(cls, v: str) -> str:
         if v not in ["FeatureCollection", "Feature"]:
@@ -182,49 +196,53 @@ class GeoJSONResponse(BaseModel):
 # APIリクエストパラメータモデル
 class RealEstateSearchParams(BaseModel):
     """不動産検索パラメータモデル"""
-    response_format: ResponseFormat = Field(default=ResponseFormat.JSON)
-    prefecture: str | None = Field(None, description="都道府県コード（01-47）")
-    city: str | None = Field(None, description="市区町村コード")
-    from_date: str | None = Field(None, description="取引時期開始（YYYYMMDD）")
-    to_date: str | None = Field(None, description="取引時期終了（YYYYMMDD）")
-    property_type: PropertyType | None = Field(None, description="不動産種別")
 
-    @field_validator('prefecture')
+    year: int = Field(description="取引年", ge=2005)
+    quarter: int | None = Field(None, description="四半期", ge=1, le=4)
+    area: str | None = Field(None, description="都道府県コード（01-47）")
+    city: str | None = Field(None, description="市区町村コード")
+    station: str | None = Field(None, description="駅コード")
+    price_classification: str | None = Field(None, description="価格情報区分")
+    language: Language = Field(default=Language.JAPANESE)
+
+    @field_validator("area")
     @classmethod
-    def validate_prefecture(cls, v: str | None) -> str | None:
+    def validate_area(cls, v: str | None) -> str | None:
         if v is not None:
             if not (v.isdigit() and 1 <= int(v) <= 47):
                 raise ValueError("都道府県コードは01-47の範囲で指定してください")
         return v
 
-    @field_validator('from_date', 'to_date')
-    @classmethod
-    def validate_date_format(cls, v: str | None) -> str | None:
-        if v is not None:
-            if len(v) != 8 or not v.isdigit():
-                raise ValueError("日付はYYYYMMDD形式で指定してください")
-        return v
+    @model_validator(mode="after")
+    def validate_location(self) -> "RealEstateSearchParams":
+        if not any((self.area, self.city, self.station)):
+            raise ValueError("area、city、stationのいずれかを指定してください")
+        return self
 
 
 class TileCoordinates(BaseModel):
     """タイル座標モデル"""
+
     z: int = Field(description="ズームレベル", ge=1, le=18)
     x: int = Field(description="タイルX座標", ge=0)
     y: int = Field(description="タイルY座標", ge=0)
 
-    @field_validator('x', 'y')
+    @field_validator("x", "y")
     @classmethod
     def validate_tile_coords(cls, v: int, info) -> int:
-        if info.data and 'z' in info.data:
-            max_coord = 2 ** info.data['z'] - 1
+        if info.data and "z" in info.data:
+            max_coord = 2 ** info.data["z"] - 1
             if v < 0 or v > max_coord:
-                raise ValueError(f"座標値はズームレベル{info.data['z']}では0-{max_coord}の範囲で指定してください")
+                raise ValueError(
+                    f"座標値はズームレベル{info.data['z']}では0-{max_coord}の範囲で指定してください"
+                )
         return v
 
 
 # エラーレスポンスモデル
 class ErrorResponse(BaseModel):
     """APIエラーレスポンスモデル"""
+
     error: dict[str, str | int] = Field(description="エラー情報")
 
     model_config = ConfigDict(
@@ -233,7 +251,7 @@ class ErrorResponse(BaseModel):
                 "error": {
                     "code": "INVALID_PARAMETER",
                     "message": "パラメータが不正です",
-                    "details": "prefecture code must be between 01 and 47"
+                    "details": "prefecture code must be between 01 and 47",
                 }
             }
         }

@@ -11,10 +11,11 @@ import sys
 
 import click
 
+from . import __version__
 from .client import ReinfiolibClient
 from .exceptions import ReinfiolibAPIError
 from .mcp_server import run_server
-from .models import Language, ResponseFormat
+from .models import Language
 
 
 def get_api_key_from_env() -> str | None:
@@ -36,35 +37,31 @@ def validate_api_key(api_key: str | None) -> str:
 
 @click.group(invoke_without_command=True)
 @click.option(
-    '--api-key',
-    envvar='REINFOLIB_API_KEY',
-    help='不動産情報ライブラリAPIキー（環境変数REINFOLIB_API_KEYでも設定可能）'
+    "--api-key",
+    envvar="REINFOLIB_API_KEY",
+    help="不動産情報ライブラリAPIキー（環境変数REINFOLIB_API_KEYでも設定可能）",
 )
 @click.option(
-    '--transport',
-    default='stdio',
-    type=click.Choice(['stdio', 'http', 'sse']),
-    help='MCPトランスポート方式（stdio、http、sse）'
+    "--transport",
+    default="stdio",
+    type=click.Choice(["stdio", "http", "sse"]),
+    help="MCPトランスポート方式（stdio、http、sse）",
 )
 @click.option(
-    '--host',
-    default='localhost',
-    help='HTTPサーバーのホスト名（transport=http/sseの場合）'
+    "--host",
+    default="localhost",
+    help="HTTPサーバーのホスト名（transport=http/sseの場合）",
 )
 @click.option(
-    '--port',
+    "--port",
     default=8000,
     type=int,
-    help='HTTPサーバーのポート番号（transport=http/sseの場合）'
+    help="HTTPサーバーのポート番号（transport=http/sseの場合）",
 )
-@click.version_option(version='0.1.0', prog_name='reinfolib-mcp')
+@click.version_option(version=__version__, prog_name="reinfolib-mcp")
 @click.pass_context
 def main(
-    ctx: click.Context,
-    api_key: str | None,
-    transport: str,
-    host: str,
-    port: int
+    ctx: click.Context, api_key: str | None, transport: str, host: str, port: int
 ) -> None:
     """
     不動産情報ライブラリMCPツール
@@ -80,10 +77,10 @@ def main(
     """
     # コンテキストにパラメータを保存
     ctx.ensure_object(dict)
-    ctx.obj['api_key'] = api_key
-    ctx.obj['transport'] = transport
-    ctx.obj['host'] = host
-    ctx.obj['port'] = port
+    ctx.obj["api_key"] = api_key
+    ctx.obj["transport"] = transport
+    ctx.obj["host"] = host
+    ctx.obj["port"] = port
 
     # サブコマンドが指定されていない場合はMCPサーバーを起動
     if ctx.invoked_subcommand is None:
@@ -91,15 +88,15 @@ def main(
         if not api_key:
             if sys.stdin.isatty():  # ターミナルでの実行時のみ
                 api_key = click.prompt(
-                    'APIキーを入力してください',
+                    "APIキーを入力してください",
                     hide_input=True,
-                    confirmation_prompt=False
+                    confirmation_prompt=False,
                 )
             else:
                 api_key = get_api_key_from_env()
 
         validated_api_key = validate_api_key(api_key)
-        ctx.obj['api_key'] = validated_api_key
+        ctx.obj["api_key"] = validated_api_key
 
         click.echo("不動産情報ライブラリMCPサーバーを起動します...")
         click.echo(f"トランスポート: {transport}")
@@ -108,67 +105,46 @@ def main(
             click.echo(f"サーバーURL: http://{host}:{port}")
 
         # MCPサーバー起動
-        run_server(
-            api_key=validated_api_key,
-            transport=transport,
-            host=host,
-            port=port
-        )
+        run_server(api_key=validated_api_key, transport=transport, host=host, port=port)
 
 
 @main.command()
+@click.option("--year", type=int, required=True, help="取引年（YYYY）")
+@click.option("--area", help="都道府県コード（area/city/stationのいずれか必須）")
+@click.option("--city", help="市区町村コード")
+@click.option("--station", help="駅コード")
+@click.option("--quarter", type=click.IntRange(1, 4), help="四半期（1-4）")
 @click.option(
-    '--prefecture',
-    required=True,
-    help='都道府県コード（01-47）例：東京都=13、大阪府=27'
+    "--price-classification",
+    type=click.Choice(["01", "02"]),
+    help="価格情報区分（01:取引価格、02:成約価格）",
 )
 @click.option(
-    '--city',
-    help='市区町村コード（オプション）例：千代田区=13101'
+    "--language",
+    default="ja",
+    type=click.Choice(["ja", "en"]),
+    help="言語（ja:日本語、en:英語）",
 )
+@click.option("--limit", default=10, type=int, help="表示件数制限（デフォルト:10）")
 @click.option(
-    '--from-date',
-    help='取引時期開始（YYYYMMDD形式）例：20230101'
-)
-@click.option(
-    '--to-date',
-    help='取引時期終了（YYYYMMDD形式）例：20231231'
-)
-@click.option(
-    '--property-type',
-    type=click.Choice(['1', '2', '3']),
-    help='不動産種別（1:宅地、2:中古マンション等、3:中古戸建住宅）'
-)
-@click.option(
-    '--language',
-    default='ja',
-    type=click.Choice(['ja', 'en']),
-    help='言語（ja:日本語、en:英語）'
-)
-@click.option(
-    '--limit',
-    default=10,
-    type=int,
-    help='表示件数制限（デフォルト:10）'
-)
-@click.option(
-    '--format',
-    'output_format',
-    default='table',
-    type=click.Choice(['table', 'json', 'csv']),
-    help='出力形式（table:表形式、json:JSON、csv:CSV）'
+    "--format",
+    "output_format",
+    default="table",
+    type=click.Choice(["table", "json", "csv"]),
+    help="出力形式（table:表形式、json:JSON、csv:CSV）",
 )
 @click.pass_context
 def search(
     ctx: click.Context,
-    prefecture: str,
+    year: int,
+    area: str | None,
     city: str | None,
-    from_date: str | None,
-    to_date: str | None,
-    property_type: str | None,
+    station: str | None,
+    quarter: int | None,
+    price_classification: str | None,
     language: str,
     limit: int,
-    output_format: str
+    output_format: str,
 ) -> None:
     """
     不動産取引価格情報を検索します
@@ -176,34 +152,29 @@ def search(
     指定した条件で不動産の取引価格情報を検索し、結果を表示します。
 
     使用例:
-      uvx reinfolib-mcp search --prefecture 13 --limit 5
-      uvx reinfolib-mcp search --prefecture 27 --city 27100 --from-date 20230101
+      reinfolib-mcp search --year 2025 --area 13 --limit 5
+      reinfolib-mcp search --year 2015 --quarter 2 --city 13102
     """
-    api_key = validate_api_key(ctx.obj.get('api_key'))
+    api_key = validate_api_key(ctx.obj.get("api_key"))
 
     async def run_search() -> None:
         try:
             async with ReinfiolibClient(api_key=api_key) as client:
-                lang = Language.ENGLISH if language == 'en' else Language.JAPANESE
+                lang = Language.ENGLISH if language == "en" else Language.JAPANESE
 
                 result = await client.search_real_estate_transactions(
-                    prefecture=prefecture,
+                    year=year,
+                    area=area,
                     city=city,
-                    from_date=from_date,
-                    to_date=to_date,
-                    property_type=property_type,
-                    response_format=ResponseFormat.JSON,
-                    lang=lang
+                    station=station,
+                    quarter=quarter,
+                    price_classification=price_classification,
+                    lang=lang,
                 )
 
-                # 結果表示
-                if hasattr(result, 'dict'):
-                    data = result.dict()
-                else:
-                    data = result
-
-                total_count = data.get('total_count', 0)
-                transactions = data.get('data', [])
+                data = result if isinstance(result, dict) else {"data": result}
+                transactions = data.get("data", [])
+                total_count = data.get("total_count", len(transactions))
 
                 click.echo(f"検索結果: {total_count}件")
 
@@ -214,20 +185,24 @@ def search(
                 # 出力形式別の表示
                 limited_data = transactions[:limit]
 
-                if output_format == 'json':
-                    click.echo(json.dumps(
-                        {"total_count": total_count, "data": limited_data},
-                        ensure_ascii=False,
-                        indent=2
-                    ))
+                if output_format == "json":
+                    click.echo(
+                        json.dumps(
+                            {"total_count": total_count, "data": limited_data},
+                            ensure_ascii=False,
+                            indent=2,
+                        )
+                    )
 
-                elif output_format == 'csv':
+                elif output_format == "csv":
                     import csv
                     import io
 
                     output = io.StringIO()
                     if limited_data:
-                        writer = csv.DictWriter(output, fieldnames=limited_data[0].keys())
+                        writer = csv.DictWriter(
+                            output, fieldnames=limited_data[0].keys()
+                        )
                         writer.writeheader()
                         writer.writerows(limited_data)
                         click.echo(output.getvalue())
@@ -235,15 +210,19 @@ def search(
                 else:  # table形式
                     click.echo("\n--- 取引データ ---")
                     for i, transaction in enumerate(limited_data, 1):
-                        click.echo(f"\n{i}. {transaction.get('prefecture', '')} {transaction.get('city', '')}")
-                        click.echo(f"   価格: {transaction.get('transaction_price', 'N/A'):,}円")
-                        click.echo(f"   面積: {transaction.get('area', 'N/A')}㎡")
-                        click.echo(f"   取引時期: {transaction.get('transaction_period', 'N/A')}")
-                        if transaction.get('building_year'):
-                            click.echo(f"   建築年: {transaction.get('building_year')}")
+                        click.echo(
+                            f"\n{i}. {transaction.get('Prefecture', '')} {transaction.get('Municipality', '')}"
+                        )
+                        click.echo(f"   価格: {transaction.get('TradePrice', 'N/A')}円")
+                        click.echo(f"   面積: {transaction.get('Area', 'N/A')}㎡")
+                        click.echo(f"   取引時期: {transaction.get('Period', 'N/A')}")
+                        if transaction.get("BuildingYear"):
+                            click.echo(f"   建築年: {transaction.get('BuildingYear')}")
 
                 if total_count > limit:
-                    click.echo(f"\n注意: {total_count}件中{limit}件を表示（--limitオプションで調整可能）")
+                    click.echo(
+                        f"\n注意: {total_count}件中{limit}件を表示（--limitオプションで調整可能）"
+                    )
 
         except ReinfiolibAPIError as e:
             click.echo(f"APIエラー: {e}", err=True)
@@ -258,29 +237,24 @@ def search(
 
 @main.command()
 @click.option(
-    '--prefecture',
-    required=True,
-    help='都道府県コード（01-47）例：東京都=13、北海道=01'
+    "--area", required=True, help="都道府県コード（01-47）例：東京都=13、北海道=01"
 )
 @click.option(
-    '--language',
-    default='ja',
-    type=click.Choice(['ja', 'en']),
-    help='言語（ja:日本語、en:英語）'
+    "--language",
+    default="ja",
+    type=click.Choice(["ja", "en"]),
+    help="言語（ja:日本語、en:英語）",
 )
 @click.option(
-    '--format',
-    'output_format',
-    default='table',
-    type=click.Choice(['table', 'json']),
-    help='出力形式（table:表形式、json:JSON）'
+    "--format",
+    "output_format",
+    default="table",
+    type=click.Choice(["table", "json"]),
+    help="出力形式（table:表形式、json:JSON）",
 )
 @click.pass_context
 def municipalities(
-    ctx: click.Context,
-    prefecture: str,
-    language: str,
-    output_format: str
+    ctx: click.Context, area: str, language: str, output_format: str
 ) -> None:
     """
     指定都道府県の市区町村一覧を取得します
@@ -291,34 +265,42 @@ def municipalities(
       uvx reinfolib-mcp municipalities --prefecture 13
       uvx reinfolib-mcp municipalities --prefecture 27 --language en
     """
-    api_key = validate_api_key(ctx.obj.get('api_key'))
+    api_key = validate_api_key(ctx.obj.get("api_key"))
 
     async def run_municipalities() -> None:
         try:
             async with ReinfiolibClient(api_key=api_key) as client:
-                lang = Language.ENGLISH if language == 'en' else Language.JAPANESE
+                lang = Language.ENGLISH if language == "en" else Language.JAPANESE
 
                 municipalities_list = await client.get_municipalities(
-                    prefecture=prefecture,
-                    lang=lang
+                    area=area, lang=lang
                 )
 
-                if output_format == 'json':
-                    data = [m.dict() for m in municipalities_list]
-                    click.echo(json.dumps(
-                        {"total_count": len(data), "data": data},
-                        ensure_ascii=False,
-                        indent=2
-                    ))
+                if isinstance(municipalities_list, dict):
+                    municipalities_list = municipalities_list.get("data", [])
+
+                if output_format == "json":
+                    data = [
+                        m.model_dump() if hasattr(m, "model_dump") else m
+                        for m in municipalities_list
+                    ]
+                    click.echo(
+                        json.dumps(
+                            {"total_count": len(data), "data": data},
+                            ensure_ascii=False,
+                            indent=2,
+                        )
+                    )
                 else:  # table形式
                     click.echo(f"市区町村一覧: {len(municipalities_list)}件")
-                    click.echo(f"都道府県: {municipalities_list[0].prefecture_name if municipalities_list else 'N/A'}")
                     click.echo("\n--- 市区町村 ---")
 
                     for municipality in municipalities_list:
-                        click.echo(f"{municipality.city_code}: {municipality.city_name}")
-                        if municipality.city_name_en and language == 'en':
-                            click.echo(f"  (English: {municipality.city_name_en})")
+                        if hasattr(municipality, "model_dump"):
+                            municipality = municipality.model_dump()
+                        click.echo(
+                            f"{municipality.get('id', '')}: {municipality.get('name', '')}"
+                        )
 
         except ReinfiolibAPIError as e:
             click.echo(f"APIエラー: {e}", err=True)
@@ -332,30 +314,18 @@ def municipalities(
 
 
 @main.command()
+@click.option("--latitude", type=float, required=True, help="緯度（例：35.6851）")
+@click.option("--longitude", type=float, required=True, help="経度（例：139.7514）")
 @click.option(
-    '--latitude',
-    type=float,
-    required=True,
-    help='緯度（例：35.6851）'
+    "--zoom", default=12, type=int, help="ズームレベル（1-18、デフォルト:12）"
 )
+@click.option("--year", type=int, required=True, help="地価公示・地価調査の対象年")
 @click.option(
-    '--longitude',
-    type=float,
-    required=True,
-    help='経度（例：139.7514）'
-)
-@click.option(
-    '--zoom',
-    default=12,
-    type=int,
-    help='ズームレベル（1-18、デフォルト:12）'
-)
-@click.option(
-    '--data-types',
+    "--data-types",
     multiple=True,
-    default=['land_price', 'urban_planning'],
-    type=click.Choice(['land_price', 'urban_planning', 'facilities', 'disaster_risk']),
-    help='取得データ種別（複数指定可能）'
+    default=["land_price", "urban_planning"],
+    type=click.Choice(["land_price", "urban_planning", "facilities", "disaster_risk"]),
+    help="取得データ種別（複数指定可能）",
 )
 @click.pass_context
 def location(
@@ -363,7 +333,8 @@ def location(
     latitude: float,
     longitude: float,
     zoom: int,
-    data_types: list[str]
+    year: int,
+    data_types: list[str],
 ) -> None:
     """
     指定位置の地理空間データを取得します
@@ -374,7 +345,7 @@ def location(
       uvx reinfolib-mcp location --latitude 35.6851 --longitude 139.7514
       uvx reinfolib-mcp location --latitude 35.6851 --longitude 139.7514 --data-types land_price --data-types facilities
     """
-    api_key = validate_api_key(ctx.obj.get('api_key'))
+    api_key = validate_api_key(ctx.obj.get("api_key"))
 
     # data_typesがタプルの場合はリストに変換
     if isinstance(data_types, tuple):
@@ -391,7 +362,7 @@ def location(
             import math
 
             # タイル座標計算
-            n = 2.0 ** zoom
+            n = 2.0**zoom
             tile_x = int((longitude + 180.0) / 360.0 * n)
             lat_rad = math.radians(latitude)
             tile_y = int((1.0 - math.asinh(math.tan(lat_rad)) / math.pi) / 2.0 * n)
@@ -408,9 +379,9 @@ def location(
 
                         if data_type == "land_price":
                             result = await client.get_land_price_points(
-                                z=zoom, x=tile_x, y=tile_y
+                                z=zoom, x=tile_x, y=tile_y, year=year
                             )
-                            features = result.get('features', [])
+                            features = result.get("features", [])
                             click.echo(f"  地価ポイント: {len(features)}件")
 
                         elif data_type == "urban_planning":
@@ -420,8 +391,8 @@ def location(
                             zone_result = await client.get_land_use_zones(
                                 z=zoom, x=tile_x, y=tile_y
                             )
-                            area_features = area_result.get('features', [])
-                            zone_features = zone_result.get('features', [])
+                            area_features = area_result.get("features", [])
+                            zone_features = zone_result.get("features", [])
                             click.echo(f"  都市計画区域: {len(area_features)}件")
                             click.echo(f"  用途地域: {len(zone_features)}件")
 
@@ -432,8 +403,8 @@ def location(
                             medical = await client.get_medical_facilities(
                                 z=zoom, x=tile_x, y=tile_y
                             )
-                            school_features = schools.get('features', [])
-                            medical_features = medical.get('features', [])
+                            school_features = schools.get("features", [])
+                            medical_features = medical.get("features", [])
                             click.echo(f"  学校: {len(school_features)}件")
                             click.echo(f"  医療機関: {len(medical_features)}件")
 
@@ -444,10 +415,12 @@ def location(
                             liquefaction = await client.get_liquefaction_tendency(
                                 z=zoom, x=tile_x, y=tile_y
                             )
-                            disaster_features = disaster.get('features', [])
-                            liquefaction_features = liquefaction.get('features', [])
+                            disaster_features = disaster.get("features", [])
+                            liquefaction_features = liquefaction.get("features", [])
                             click.echo(f"  災害危険区域: {len(disaster_features)}件")
-                            click.echo(f"  液状化発生傾向: {len(liquefaction_features)}件")
+                            click.echo(
+                                f"  液状化発生傾向: {len(liquefaction_features)}件"
+                            )
 
                     except ReinfiolibAPIError as e:
                         click.echo(f"  エラー: {e}")
@@ -468,10 +441,10 @@ def status(ctx: click.Context) -> None:
 
     APIキーの設定状況やサーバーの健全性を確認します。
     """
-    api_key = ctx.obj.get('api_key')
+    api_key = ctx.obj.get("api_key")
 
     click.echo("=== 不動産情報ライブラリMCP 状態確認 ===")
-    click.echo("バージョン: 0.1.0")
+    click.echo(f"バージョン: {__version__}")
     click.echo(f"APIキー設定: {'✓' if api_key else '✗'}")
 
     if not api_key:
@@ -483,7 +456,11 @@ def status(ctx: click.Context) -> None:
             async with ReinfiolibClient(api_key=api_key) as client:
                 # 簡単なAPI呼び出しでテスト
                 municipalities = await client.get_municipalities("13")  # 東京都
-                click.echo(f"API接続: ✓ （テスト取得: {len(municipalities)}件の市区町村）")
+                if isinstance(municipalities, dict):
+                    municipalities = municipalities.get("data", [])
+                click.echo(
+                    f"API接続: ✓ （テスト取得: {len(municipalities)}件の市区町村）"
+                )
                 click.echo(f"ベースURL: {client.base_url}")
                 click.echo(f"利用可能エンドポイント: {len(client.ENDPOINTS)}種類")
 
@@ -496,5 +473,5 @@ def status(ctx: click.Context) -> None:
     asyncio.run(check_api_connection())
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

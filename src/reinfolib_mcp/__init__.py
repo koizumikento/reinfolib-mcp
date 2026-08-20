@@ -4,7 +4,7 @@
 国土交通省の不動産情報ライブラリAPIを使用したMCPサーバーとPythonクライアント
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __author__ = "Developer"
 __email__ = "services@straydogman.com"
 

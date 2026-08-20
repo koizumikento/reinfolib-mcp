@@ -32,9 +32,11 @@ class TestEnums:
 
     def test_property_type_values(self):
         """PropertyType列挙型の値を確認"""
-        assert PropertyType.RESIDENTIAL_LAND == "1"
-        assert PropertyType.USED_MANSION == "2"
-        assert PropertyType.USED_HOUSE == "3"
+        assert PropertyType.RESIDENTIAL_LAND == "01"
+        assert PropertyType.LAND_AND_BUILDING == "02"
+        assert PropertyType.USED_MANSION == "07"
+        assert PropertyType.AGRICULTURAL_LAND == "10"
+        assert PropertyType.FOREST_LAND == "11"
 
 
 class TestRealEstateTransaction:
@@ -43,10 +45,7 @@ class TestRealEstateTransaction:
     def test_create_basic_transaction(self):
         """基本的な取引情報の作成"""
         transaction = RealEstateTransaction(
-            prefecture="東京都",
-            city="千代田区",
-            transaction_price=50000000,
-            area=100.5
+            prefecture="東京都", city="千代田区", transaction_price=50000000, area=100.5
         )
 
         assert transaction.prefecture == "東京都"
@@ -72,7 +71,7 @@ class TestRealEstateTransaction:
             usage="住宅",
             transaction_period="2023年第1四半期",
             longitude=139.7514,
-            latitude=35.6851
+            latitude=35.6851,
         )
 
         assert transaction.prefecture_code == "13"
@@ -82,10 +81,7 @@ class TestRealEstateTransaction:
 
     def test_optional_fields_none(self):
         """オプションフィールドがNoneでも作成可能"""
-        transaction = RealEstateTransaction(
-            prefecture="大阪府",
-            city="大阪市"
-        )
+        transaction = RealEstateTransaction(prefecture="大阪府", city="大阪市")
 
         assert transaction.transaction_price is None
         assert transaction.area is None
@@ -101,7 +97,7 @@ class TestMunicipality:
             prefecture_code="13",
             prefecture_name="東京都",
             city_code="13101",
-            city_name="千代田区"
+            city_name="千代田区",
         )
 
         assert municipality.prefecture_code == "13"
@@ -116,7 +112,7 @@ class TestMunicipality:
             prefecture_name="東京都",
             city_code="13101",
             city_name="千代田区",
-            city_name_en="Chiyoda City"
+            city_name_en="Chiyoda City",
         )
 
         assert municipality.city_name_en == "Chiyoda City"
@@ -156,45 +152,45 @@ class TestRealEstateSearchParams:
     def test_valid_search_params(self):
         """有効な検索パラメータの作成"""
         params = RealEstateSearchParams(
-            prefecture="13",
+            year=2025,
+            area="13",
             city="13101",
-            from_date="20230101",
-            to_date="20231231",
-            property_type=PropertyType.RESIDENTIAL_LAND
+            quarter=2,
+            price_classification="01",
         )
 
-        assert params.prefecture == "13"
+        assert params.year == 2025
+        assert params.area == "13"
         assert params.city == "13101"
-        assert params.from_date == "20230101"
-        assert params.to_date == "20231231"
-        assert params.property_type == PropertyType.RESIDENTIAL_LAND
+        assert params.quarter == 2
+        assert params.price_classification == "01"
 
     def test_invalid_prefecture_code(self):
         """無効な都道府県コードでバリデーションエラー"""
         with pytest.raises(ValidationError):
-            RealEstateSearchParams(prefecture="00")  # < 1
+            RealEstateSearchParams(year=2025, area="00")  # < 1
 
         with pytest.raises(ValidationError):
-            RealEstateSearchParams(prefecture="48")  # > 47
+            RealEstateSearchParams(year=2025, area="48")  # > 47
 
         with pytest.raises(ValidationError):
-            RealEstateSearchParams(prefecture="XX")  # 非数値
+            RealEstateSearchParams(year=2025, area="XX")  # 非数値
 
-    def test_invalid_date_format(self):
-        """無効な日付形式でバリデーションエラー"""
+    def test_requires_current_time_and_location_parameters(self):
+        """年・四半期・地域条件を検証する"""
         with pytest.raises(ValidationError):
-            RealEstateSearchParams(from_date="2023-01-01")  # ハイフン形式
-
-        with pytest.raises(ValidationError):
-            RealEstateSearchParams(to_date="230101")  # 6桁
+            RealEstateSearchParams(year=2004, area="13")
 
         with pytest.raises(ValidationError):
-            RealEstateSearchParams(from_date="202301AA")  # 非数値
+            RealEstateSearchParams(year=2025, quarter=5, area="13")
+
+        with pytest.raises(ValidationError):
+            RealEstateSearchParams(year=2025)
 
     def test_default_values(self):
         """デフォルト値の確認"""
-        params = RealEstateSearchParams()
+        params = RealEstateSearchParams(year=2025, area="13")
 
-        assert params.response_format == ResponseFormat.JSON
-        assert params.prefecture is None
+        assert params.language == Language.JAPANESE
+        assert params.area == "13"
         assert params.city is None

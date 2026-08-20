@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          python-version: "3.12"
+      - run: uv sync --frozen
+      - run: uv run ruff check src tests
+      - run: uv run pytest -q
+      - run: uv build
+      - name: Verify clean wheel install and MCP tools
+        shell: bash
+        run: |
+          WHEEL=$(find dist -name '*.whl' -print -quit)
+          uv run --isolated --no-project --with "$WHEEL" python - <<'PY'
+          import asyncio
+          from reinfolib_mcp.client import API_CONTRACTS
+          from reinfolib_mcp.mcp_server import create_mcp_server
+
+          async def main():
+              assert len(API_CONTRACTS) == 35
+              tools = await create_mcp_server("test").list_tools()
+              assert "reinfolib_get_api_data" in {tool.name for tool in tools}
+
+          asyncio.run(main())
+          PY
