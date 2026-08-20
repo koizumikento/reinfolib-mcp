@@ -31,7 +31,7 @@ PyPIには未公開です。GitHubから起動してください。
       "command": "uvx",
       "args": [
         "--from",
-        "git+https://github.com/koizumikento/reinfolib-mcp.git@develop",
+        "git+https://github.com/koizumikento/reinfolib-mcp.git@main",
         "reinfolib-mcp"
       ],
       "env": {
@@ -78,15 +78,15 @@ PyPIには未公開です。GitHubから起動してください。
 
 ```sh
 # 取引価格を検索
-uvx --from git+https://github.com/koizumikento/reinfolib-mcp.git@develop \
+uvx --from git+https://github.com/koizumikento/reinfolib-mcp.git@main \
   reinfolib-mcp search --year 2015 --quarter 2 --city 13102
 
 # 市区町村一覧
-uvx --from git+https://github.com/koizumikento/reinfolib-mcp.git@develop \
+uvx --from git+https://github.com/koizumikento/reinfolib-mcp.git@main \
   reinfolib-mcp municipalities --area 13
 
 # 緯度経度周辺の地価・都市計画情報
-uvx --from git+https://github.com/koizumikento/reinfolib-mcp.git@develop \
+uvx --from git+https://github.com/koizumikento/reinfolib-mcp.git@main \
   reinfolib-mcp location --latitude 35.6851 --longitude 139.7514 --year 2025
 ```
 
