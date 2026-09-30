@@ -2,9 +2,12 @@
 MCPサーバーのテスト
 """
 
+import sys
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from fastmcp import Client
+from fastmcp.client.transports import StdioTransport
 
 from reinfolib_mcp.exceptions import ReinfiolibAPIError
 from reinfolib_mcp.mcp_server import create_mcp_server, run_server
@@ -18,6 +21,40 @@ async def test_real_server_lists_current_tools() -> None:
     assert len(names) == 13
     assert "reinfolib_get_api_data" in names
     assert "reinfolib_search_real_estate" in names
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("mode", ["auto", "legacy"])
+async def test_mcp_protocol_and_mocked_response(mode) -> None:
+    payload = {"data": [{"name": "test"}]}
+    mock_client = AsyncMock()
+    mock_client.request_api.return_value = payload
+    with patch("reinfolib_mcp.mcp_server.ReinfiolibClient", return_value=mock_client):
+        async with Client(create_mcp_server("test"), mode=mode) as client:
+            assert len(await client.list_tools()) == 13
+            result = await client.call_tool(
+                "reinfolib_get_api_data",
+                {"api_id": "XIT002", "parameters": {"area": "13"}},
+            )
+            assert result.data == payload
+            invalid = await client.call_tool(
+                "reinfolib_get_api_data", {}, raise_on_error=False
+            )
+            assert invalid.is_error
+    mock_client.request_api.assert_awaited_once_with("XIT002", area="13")
+
+
+@pytest.mark.asyncio
+async def test_cli_stdio_initialization() -> None:
+    transport = StdioTransport(
+        command=sys.executable,
+        args=["-m", "reinfolib_mcp.cli", "--api-key", "test"],
+        env={"PYTHONUTF8": "1"},
+    )
+    async with Client(transport, mode="legacy", timeout=10) as client:
+        assert len(await client.list_tools()) == 13
+        status = await client.call_tool("reinfolib_server_status", {})
+        assert status.data["available_endpoints"] == 35
 
 
 class TestMCPServerCreation:

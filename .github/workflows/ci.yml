@@ -12,10 +12,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
           python-version: "3.12"
-      - run: uv sync --frozen
+      - run: uv sync --frozen --extra dev
+      - run: uv run --extra dev isort --check-only src tests
       - run: uv run ruff check src tests
       - run: uv run pytest -q
       - run: uv build
