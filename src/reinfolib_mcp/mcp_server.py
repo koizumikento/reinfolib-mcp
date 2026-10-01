@@ -11,7 +11,7 @@ from fastmcp import FastMCP
 
 from . import __version__
 from .client import API_CONTRACTS, ReinfiolibClient
-from .exceptions import ReinfiolibAPIError
+from .exceptions import InvalidParameterError, ReinfiolibAPIError
 from .models import Language, ResponseFormat
 
 
@@ -68,7 +68,7 @@ def create_mcp_server(api_key: str | None = None) -> FastMCP:
         try:
             lang = Language.ENGLISH if language == "en" else Language.JAPANESE
 
-            result = await client.search_real_estate_transactions(
+            result: dict[str, Any] = await client.search_real_estate_transactions(
                 year=year,
                 area=area,
                 city=city,
@@ -77,10 +77,6 @@ def create_mcp_server(api_key: str | None = None) -> FastMCP:
                 price_classification=price_classification,
                 lang=lang,
             )
-
-            # Pydanticモデルの場合は辞書に変換
-            if hasattr(result, "dict"):
-                return result.dict()
 
             return result
 
@@ -165,7 +161,7 @@ def create_mcp_server(api_key: str | None = None) -> FastMCP:
                 else ResponseFormat.GEOJSON
             )
 
-            result = await client.get_land_price_points(
+            result: dict[str, Any] = await client.get_land_price_points(
                 z=zoom_level, x=tile_x, y=tile_y, year=year, response_format=format_enum
             )
 
@@ -214,7 +210,7 @@ def create_mcp_server(api_key: str | None = None) -> FastMCP:
             )
 
             if info_type == "zones":
-                result = await client.get_land_use_zones(
+                result: dict[str, Any] = await client.get_land_use_zones(
                     z=zoom_level, x=tile_x, y=tile_y, response_format=format_enum
                 )
             else:  # デフォルトは都市計画区域
@@ -256,7 +252,7 @@ def create_mcp_server(api_key: str | None = None) -> FastMCP:
             鑑定評価書情報
         """
         try:
-            result = await client.get_appraisal_info(
+            result: dict[str, Any] = await client.get_appraisal_info(
                 year=year,
                 area=area,
                 division=division,
@@ -301,7 +297,7 @@ def create_mcp_server(api_key: str | None = None) -> FastMCP:
                 else ResponseFormat.GEOJSON
             )
 
-            result = await client.get_real_estate_points(
+            result: dict[str, Any] = await client.get_real_estate_points(
                 z=zoom_level,
                 x=tile_x,
                 y=tile_y,
@@ -361,7 +357,7 @@ def create_mcp_server(api_key: str | None = None) -> FastMCP:
             )
 
             if school_type == "junior_high":
-                result = await client.get_junior_high_school_districts(
+                result: dict[str, Any] = await client.get_junior_high_school_districts(
                     z=zoom_level, x=tile_x, y=tile_y, response_format=format_enum
                 )
             else:  # デフォルトは小学校区
@@ -412,7 +408,7 @@ def create_mcp_server(api_key: str | None = None) -> FastMCP:
             )
 
             if facility_type == "welfare":
-                result = await client.get_welfare_facilities(
+                result: dict[str, Any] = await client.get_welfare_facilities(
                     z=zoom_level, x=tile_x, y=tile_y, response_format=format_enum
                 )
             else:  # デフォルトは保育園・幼稚園
@@ -465,7 +461,7 @@ def create_mcp_server(api_key: str | None = None) -> FastMCP:
             )
 
             if facility_type == "medical":
-                result = await client.get_medical_facilities(
+                result: dict[str, Any] = await client.get_medical_facilities(
                     z=zoom_level, x=tile_x, y=tile_y, response_format=format_enum
                 )
             else:  # デフォルトは学校
@@ -518,7 +514,7 @@ def create_mcp_server(api_key: str | None = None) -> FastMCP:
             )
 
             if risk_type == "liquefaction":
-                result = await client.get_liquefaction_tendency(
+                result: dict[str, Any] = await client.get_liquefaction_tendency(
                     z=zoom_level, x=tile_x, y=tile_y, response_format=format_enum
                 )
             else:  # デフォルトは災害危険区域
@@ -547,8 +543,9 @@ def create_mcp_server(api_key: str | None = None) -> FastMCP:
         latitude: float,
         longitude: float,
         zoom_level: int = 12,
-        data_types: list[str] = None,
+        data_types: list[str] | None = None,
         response_format: str = "geojson",
+        year: int | None = None,
     ) -> dict[str, Any]:
         """
         緯度経度を指定して周辺の地理空間データを取得します。
@@ -559,6 +556,7 @@ def create_mcp_server(api_key: str | None = None) -> FastMCP:
             zoom_level: ズームレベル（1-18）
             data_types: 取得データ種別のリスト（land_price、urban_planning、facilities、disaster_risk）
             response_format: レスポンス形式（geojson、pbf）
+            year: 地価公示・地価調査の対象年（land_priceを取得する場合に必須）
 
         Returns:
             統合地理空間データ
@@ -575,7 +573,7 @@ def create_mcp_server(api_key: str | None = None) -> FastMCP:
             lat_rad = math.radians(latitude)
             tile_y = int((1.0 - math.asinh(math.tan(lat_rad)) / math.pi) / 2.0 * n)
 
-            results = {
+            results: dict[str, Any] = {
                 "location": {
                     "latitude": latitude,
                     "longitude": longitude,
@@ -596,10 +594,15 @@ def create_mcp_server(api_key: str | None = None) -> FastMCP:
             for data_type in data_types:
                 try:
                     if data_type == "land_price":
+                        if year is None:
+                            raise InvalidParameterError(
+                                "地価情報の取得にはyearの指定が必要です"
+                            )
                         data = await client.get_land_price_points(
                             z=zoom_level,
                             x=tile_x,
                             y=tile_y,
+                            year=year,
                             response_format=format_enum,
                         )
                         results["data"]["land_price"] = data

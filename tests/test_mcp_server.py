@@ -9,6 +9,7 @@ import pytest
 from fastmcp import Client
 from fastmcp.client.transports import StdioTransport
 
+from reinfolib_mcp.client import ReinfiolibClient
 from reinfolib_mcp.exceptions import ReinfiolibAPIError
 from reinfolib_mcp.mcp_server import create_mcp_server, run_server
 
@@ -42,6 +43,58 @@ async def test_mcp_protocol_and_mocked_response(mode) -> None:
             )
             assert invalid.is_error
     mock_client.request_api.assert_awaited_once_with("XIT002", area="13")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("mode", ["auto", "legacy"])
+async def test_geospatial_year_and_partial_errors(mode) -> None:
+    payload = {"type": "FeatureCollection", "features": []}
+    coordinates = {"latitude": 35.6851, "longitude": 139.7514}
+    async with ReinfiolibClient(api_key="test") as api:
+        api._make_request = AsyncMock(return_value=payload)
+        with patch("reinfolib_mcp.mcp_server.ReinfiolibClient", return_value=api):
+            async with Client(create_mcp_server("test"), mode=mode) as client:
+                result = await client.call_tool(
+                    "reinfolib_get_geospatial_data", {**coordinates, "year": 2025}
+                )
+                assert result.data["data"]["land_price"] == payload
+                assert set(result.data["data"]) == {
+                    "land_price",
+                    "urban_planning",
+                    "facilities",
+                }
+                land_call = api._make_request.await_args_list[0]
+                assert land_call.args[0] == "/XPT002"
+                assert land_call.args[1]["year"] == 2025
+                assert land_call.args[1]["response_format"] == "geojson"
+
+                api._make_request.reset_mock()
+                result = await client.call_tool(
+                    "reinfolib_get_geospatial_data", coordinates
+                )
+                error = result.data["data"]["land_price"]
+                assert error["error_type"] == "InvalidParameterError"
+                assert "year" in error["error"]
+                assert result.data["data"]["urban_planning"]["area"] == payload
+                assert result.data["data"]["facilities"]["schools"] == payload
+                assert len(api._make_request.await_args_list) == 4
+                assert all(
+                    call.args[0] != "/XPT002"
+                    for call in api._make_request.await_args_list
+                )
+
+                api._make_request.reset_mock()
+                result = await client.call_tool(
+                    "reinfolib_get_geospatial_data",
+                    {**coordinates, "data_types": ["disaster_risk"]},
+                )
+                assert result.data["data"]["disaster_risk"]["disaster_areas"] == payload
+                assert len(api._make_request.await_args_list) == 2
+
+                result = await client.call_tool(
+                    "reinfolib_search_real_estate", {"year": 2025, "area": "13"}
+                )
+                assert result.data == payload
 
 
 @pytest.mark.asyncio

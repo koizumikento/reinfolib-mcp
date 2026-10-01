@@ -62,6 +62,8 @@ PyPIには未公開です。GitHubから起動してください。
 
 `reinfolib_get_api_data`の`parameters`には[公式API操作説明](https://www.reinfolib.mlit.go.jp/help/apiManual/)と同じパラメータ名を渡します。
 
+`reinfolib_get_geospatial_data`で`land_price`を取得する場合は、`year`（例: `2025`）を指定してください。省略すると地価情報には入力エラーを返し、他の指定データは取得します。
+
 ```json
 {
   "api_id": "XKT026",

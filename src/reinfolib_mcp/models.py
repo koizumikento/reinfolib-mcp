@@ -5,7 +5,14 @@
 from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationInfo,
+    field_validator,
+    model_validator,
+)
 
 
 class ResponseFormat(str, Enum):
@@ -229,7 +236,7 @@ class TileCoordinates(BaseModel):
 
     @field_validator("x", "y")
     @classmethod
-    def validate_tile_coords(cls, v: int, info) -> int:
+    def validate_tile_coords(cls, v: int, info: ValidationInfo) -> int:
         if info.data and "z" in info.data:
             max_coord = 2 ** info.data["z"] - 1
             if v < 0 or v > max_coord:
