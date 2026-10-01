@@ -2,6 +2,7 @@
 不動産情報ライブラリAPI用カスタム例外クラス群
 """
 
+from typing import Any
 
 
 class ReinfiolibAPIError(Exception):
@@ -12,7 +13,7 @@ class ReinfiolibAPIError(Exception):
         message: str,
         status_code: int | None = None,
         error_code: str | None = None,
-        details: str | None = None
+        details: str | None = None,
     ) -> None:
         """
         API例外を初期化します。
@@ -49,9 +50,7 @@ class AuthenticationError(ReinfiolibAPIError):
     """認証エラー（401 Unauthorized）"""
 
     def __init__(
-        self,
-        message: str = "APIキーが無効です。認証に失敗しました。",
-        **kwargs
+        self, message: str = "APIキーが無効です。認証に失敗しました。", **kwargs: Any
     ) -> None:
         super().__init__(message, status_code=401, **kwargs)
 
@@ -60,9 +59,7 @@ class InvalidParameterError(ReinfiolibAPIError):
     """パラメータエラー（400 Bad Request）"""
 
     def __init__(
-        self,
-        message: str = "リクエストパラメータが不正です。",
-        **kwargs
+        self, message: str = "リクエストパラメータが不正です。", **kwargs: Any
     ) -> None:
         super().__init__(message, status_code=400, **kwargs)
 
@@ -74,7 +71,7 @@ class RateLimitError(ReinfiolibAPIError):
         self,
         message: str = "レート制限に達しました。しばらく時間をおいて再試行してください。",
         retry_after: int | None = None,
-        **kwargs
+        **kwargs: Any,
     ) -> None:
         self.retry_after = retry_after
         super().__init__(message, status_code=429, **kwargs)
@@ -84,9 +81,7 @@ class NotFoundError(ReinfiolibAPIError):
     """リソース未発見エラー（404 Not Found）"""
 
     def __init__(
-        self,
-        message: str = "指定されたリソースが見つかりません。",
-        **kwargs
+        self, message: str = "指定されたリソースが見つかりません。", **kwargs: Any
     ) -> None:
         super().__init__(message, status_code=404, **kwargs)
 
@@ -95,9 +90,7 @@ class ServerError(ReinfiolibAPIError):
     """サーバーエラー（500 Internal Server Error）"""
 
     def __init__(
-        self,
-        message: str = "サーバー内部でエラーが発生しました。",
-        **kwargs
+        self, message: str = "サーバー内部でエラーが発生しました。", **kwargs: Any
     ) -> None:
         super().__init__(message, status_code=500, **kwargs)
 
@@ -106,9 +99,7 @@ class NetworkError(ReinfiolibAPIError):
     """ネットワークエラー"""
 
     def __init__(
-        self,
-        message: str = "ネットワーク接続エラーが発生しました。",
-        **kwargs
+        self, message: str = "ネットワーク接続エラーが発生しました。", **kwargs: Any
     ) -> None:
         super().__init__(message, **kwargs)
 
@@ -120,7 +111,7 @@ class TimeoutError(ReinfiolibAPIError):
         self,
         message: str = "リクエストがタイムアウトしました。",
         timeout_seconds: float | None = None,
-        **kwargs
+        **kwargs: Any,
     ) -> None:
         self.timeout_seconds = timeout_seconds
         super().__init__(message, **kwargs)
@@ -130,9 +121,7 @@ class DataFormatError(ReinfiolibAPIError):
     """データ形式エラー"""
 
     def __init__(
-        self,
-        message: str = "レスポンスデータの形式が不正です。",
-        **kwargs
+        self, message: str = "レスポンスデータの形式が不正です。", **kwargs: Any
     ) -> None:
         super().__init__(message, **kwargs)
 
@@ -143,7 +132,7 @@ class GeospatialError(ReinfiolibAPIError):
     def __init__(
         self,
         message: str = "地理空間データの処理でエラーが発生しました。",
-        **kwargs
+        **kwargs: Any,
     ) -> None:
         super().__init__(message, **kwargs)
 
@@ -151,9 +140,5 @@ class GeospatialError(ReinfiolibAPIError):
 class ConfigurationError(ReinfiolibAPIError):
     """設定エラー"""
 
-    def __init__(
-        self,
-        message: str = "設定に問題があります。",
-        **kwargs
-    ) -> None:
+    def __init__(self, message: str = "設定に問題があります。", **kwargs: Any) -> None:
         super().__init__(message, **kwargs)

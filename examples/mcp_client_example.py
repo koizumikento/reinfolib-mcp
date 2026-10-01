@@ -160,6 +160,7 @@ def simulate_mcp_client_requests():
                     "longitude": 139.7514,
                     "zoom_level": 12,
                     "data_types": ["land_price", "urban_planning", "facilities"],
+                    "year": 2025,
                     "response_format": "geojson"
                 }
             },

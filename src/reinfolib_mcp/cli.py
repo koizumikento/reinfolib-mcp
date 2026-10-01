@@ -334,7 +334,7 @@ def location(
     longitude: float,
     zoom: int,
     year: int,
-    data_types: list[str],
+    data_types: tuple[str, ...],
 ) -> None:
     """
     指定位置の地理空間データを取得します
@@ -342,14 +342,10 @@ def location(
     緯度経度を指定して、周辺の不動産・都市計画・施設・災害リスク情報を取得します。
 
     使用例:
-      uvx reinfolib-mcp location --latitude 35.6851 --longitude 139.7514
-      uvx reinfolib-mcp location --latitude 35.6851 --longitude 139.7514 --data-types land_price --data-types facilities
+      uvx reinfolib-mcp location --latitude 35.6851 --longitude 139.7514 --year 2025
+      uvx reinfolib-mcp location --latitude 35.6851 --longitude 139.7514 --year 2025 --data-types land_price --data-types facilities
     """
     api_key = validate_api_key(ctx.obj.get("api_key"))
-
-    # data_typesがタプルの場合はリストに変換
-    if isinstance(data_types, tuple):
-        data_types = list(data_types)
 
     async def run_location() -> None:
         try:

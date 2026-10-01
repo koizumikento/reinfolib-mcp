@@ -17,6 +17,7 @@ jobs:
           python-version: "3.12"
       - run: uv sync --frozen --extra dev
       - run: uv run --extra dev isort --check-only src tests
+      - run: uv run --extra dev mypy src/reinfolib_mcp
       - run: uv run ruff check src tests
       - run: uv run pytest -q
       - run: uv build
