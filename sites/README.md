@@ -127,9 +127,19 @@ bodies stream through the Worker; backend memory and downstream client limits
 still apply. GET/DELETE return 405; no sessions, background tasks or resumable
 SSE stream are advertised.
 
+Discovery and every subsequent modern call require the standard per-request
+`_meta` version/capabilities envelope and matching HTTP version header.
+Discovery is not a session. A bare `server/discover({})` is not a conformant
+modern request; do not infer a platform request body from HTTP 200 or headers.
+For a keyless read-only smoke call use `reinfolib_server_status({})`: it performs
+no upstream API request. The factory still needs a nonempty API-key setting, so
+a `synthetic-unused` value can validate status only; that is not MLIT API proof.
+
 Protocol/runtime references checked 2026-10-10:
 
 - [MCP Streamable HTTP](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports)
+- [Modern discovery response](https://modelcontextprotocol.io/specification/2026-07-28/server/discover)
+- [Modern per-request versioning](https://modelcontextprotocol.io/specification/2026-07-28/basic/versioning)
 - [Official MCP Python SDK](https://github.com/modelcontextprotocol/python-sdk)
 - [FastMCP HTTP and stateless deployment](https://gofastmcp.com/deployment/http)
 - [FastMCP token verification](https://gofastmcp.com/servers/auth/token-verification)

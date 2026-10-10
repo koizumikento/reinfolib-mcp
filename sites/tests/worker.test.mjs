@@ -69,6 +69,16 @@ test("notification and streamed SSE are passed through", async () => {
   assert.equal(await (await worker.fetch(request(call), env)).text(), "data: fixture\n\n");
 });
 
+test("legacy-only backend discovery failure stays a JSON-RPC error", async () => {
+  const failure = { jsonrpc: "2.0", id: "discover", error: { code: -32601, message: "Method not found" } };
+  globalThis.fetch = async () => Response.json(failure);
+  const response = await worker.fetch(request({ jsonrpc: "2.0", id: "discover", method: "server/discover",
+    params: { _meta: { "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+      "io.modelcontextprotocol/clientCapabilities": {} } } }, { "MCP-Protocol-Version": "2026-07-28" }), env);
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), failure);
+});
+
 test("missing config, redirects and errors do not leak backend secrets", async () => {
   for (const change of [{ REINFOLIB_BACKEND_URL: "http://backend.invalid/mcp" },
     { REINFOLIB_BACKEND_URL: "https://backend.invalid/other" },
