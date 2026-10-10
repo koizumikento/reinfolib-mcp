@@ -11,6 +11,7 @@ from pathlib import Path
 import httpx
 import pytest
 from fastmcp import Client
+from mcp.types import DiscoverResult, Implementation
 
 from reinfolib_mcp.client import API_CONTRACTS
 
@@ -84,6 +85,75 @@ async def test_worker_backend_sdk_and_cleanup():
                 await asyncio.sleep(0.1)
             else:
                 pytest.fail("Fixture HTTP processes did not start")
+            endpoint = f"http://127.0.0.1:{gateway_port}/mcp"
+            headers = {
+                "Accept": "application/json, text/event-stream",
+                "MCP-Protocol-Version": "2026-07-28",
+            }
+            metadata = {
+                "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+                "io.modelcontextprotocol/clientCapabilities": {},
+            }
+            response = await probe.post(
+                endpoint,
+                headers=headers,
+                json={
+                    "jsonrpc": "2.0",
+                    "id": "discover",
+                    "method": "server/discover",
+                    "params": {"_meta": metadata},
+                },
+            )
+            assert response.status_code == 200
+            body = response.json()
+            assert body["id"] == "discover" and "error" not in body
+            discovered = DiscoverResult.model_validate(body["result"])
+            assert discovered.supported_versions == ["2026-07-28"]
+            assert discovered.capabilities.tools is not None
+            assert body["result"]["resultType"] == "complete"
+            identity = Implementation.model_validate(
+                body["result"]["_meta"]["io.modelcontextprotocol/serverInfo"]
+            )
+            assert identity.name == "不動産情報ライブラリMCP" and identity.version
+            for method, params in [
+                ("tools/list", {}),
+                (
+                    "tools/call",
+                    {
+                        "name": "reinfolib_server_status",
+                        "arguments": {},
+                    },
+                ),
+            ]:
+                response = await probe.post(
+                    endpoint,
+                    headers=headers,
+                    json={
+                        "jsonrpc": "2.0",
+                        "id": method,
+                        "method": method,
+                        "params": {**params, "_meta": metadata},
+                    },
+                )
+                assert response.status_code == 200 and "error" not in response.json()
+                result = response.json()["result"]
+                if method == "tools/list":
+                    assert len(result["tools"]) == 13
+                else:
+                    assert result["structuredContent"]["available_endpoints"] == 35
+            for method in ["server/discover", "tools/list"]:
+                response = await probe.post(
+                    endpoint,
+                    headers=headers,
+                    json={
+                        "jsonrpc": "2.0",
+                        "id": "invalid",
+                        "method": method,
+                        "params": {"_meta": {}},
+                    },
+                )
+                assert response.status_code == 400
+                assert response.json()["error"]["code"] == -32602
         for mode in ["auto", "legacy"]:
             async with Client(
                 f"http://127.0.0.1:{gateway_port}/mcp", mode=mode
