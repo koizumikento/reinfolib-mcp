@@ -16,11 +16,16 @@ jobs:
         with:
           python-version: "3.12"
       - run: uv sync --frozen --extra dev
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
       - run: uv run --extra dev isort --check-only src tests
       - run: uv run --extra dev mypy src/reinfolib_mcp
       - run: uv run ruff check src tests
       - run: uv run pytest -q
       - run: uv build
+      - run: node --test sites/tests/worker.test.mjs
+      - run: node sites/scripts/build.mjs
       - name: Verify clean wheel install and MCP tools
         shell: bash
         run: |

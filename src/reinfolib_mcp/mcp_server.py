@@ -4,8 +4,11 @@
 FastMCPライブラリを使用して不動産情報ライブラリAPIをMCPツールとして提供
 """
 
+import base64
 import os
-from typing import Any
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+from typing import Any, TypeVar, cast
 
 from fastmcp import FastMCP
 
@@ -13,6 +16,26 @@ from . import __version__
 from .client import API_CONTRACTS, ReinfiolibClient
 from .exceptions import InvalidParameterError, ReinfiolibAPIError
 from .models import Language, ResponseFormat
+
+_Result = TypeVar("_Result")
+
+
+def _mcp_result(value: _Result) -> _Result:
+    """JSON cannot carry raw PBF bytes; keep library responses untouched."""
+    if isinstance(value, dict):
+        if value.get("format") == "pbf" and isinstance(value.get("data"), bytes):
+            return cast(
+                _Result,
+                {
+                    **value,
+                    "data": base64.b64encode(value["data"]).decode("ascii"),
+                    "encoding": "base64",
+                },
+            )
+        return cast(_Result, {key: _mcp_result(item) for key, item in value.items()})
+    if isinstance(value, list):
+        return cast(_Result, [_mcp_result(item) for item in value])
+    return value
 
 
 def create_mcp_server(api_key: str | None = None) -> FastMCP:
@@ -25,14 +48,20 @@ def create_mcp_server(api_key: str | None = None) -> FastMCP:
     Returns:
         FastMCP: 設定済みのMCPサーバー
     """
-    # MCPサーバー初期化
-    mcp = FastMCP("不動産情報ライブラリMCP")
-
     # APIクライアント初期化
     try:
         client = ReinfiolibClient(api_key=api_key)
     except ReinfiolibAPIError as e:
         raise RuntimeError(f"MCPサーバー初期化失敗: {e}") from e
+
+    @asynccontextmanager
+    async def lifespan(server: FastMCP) -> AsyncIterator[None]:
+        try:
+            yield None
+        finally:
+            await client.close()
+
+    mcp = FastMCP("不動産情報ライブラリMCP", mask_error_details=True, lifespan=lifespan)
 
     # === 不動産価格情報ツール ===
 
@@ -78,7 +107,7 @@ def create_mcp_server(api_key: str | None = None) -> FastMCP:
                 lang=lang,
             )
 
-            return result
+            return _mcp_result(result)
 
         except ReinfiolibAPIError as e:
             return {
@@ -165,7 +194,7 @@ def create_mcp_server(api_key: str | None = None) -> FastMCP:
                 z=zoom_level, x=tile_x, y=tile_y, year=year, response_format=format_enum
             )
 
-            return result
+            return _mcp_result(result)
 
         except ReinfiolibAPIError as e:
             return {
@@ -218,7 +247,7 @@ def create_mcp_server(api_key: str | None = None) -> FastMCP:
                     z=zoom_level, x=tile_x, y=tile_y, response_format=format_enum
                 )
 
-            return result
+            return _mcp_result(result)
 
         except ReinfiolibAPIError as e:
             return {
@@ -258,7 +287,7 @@ def create_mcp_server(api_key: str | None = None) -> FastMCP:
                 division=division,
             )
 
-            return result
+            return _mcp_result(result)
 
         except ReinfiolibAPIError as e:
             return {"error": str(e), "error_type": type(e).__name__, "data": []}
@@ -306,7 +335,7 @@ def create_mcp_server(api_key: str | None = None) -> FastMCP:
                 response_format=format_enum,
             )
 
-            return result
+            return _mcp_result(result)
 
         except ReinfiolibAPIError as e:
             return {
@@ -365,7 +394,7 @@ def create_mcp_server(api_key: str | None = None) -> FastMCP:
                     z=zoom_level, x=tile_x, y=tile_y, response_format=format_enum
                 )
 
-            return result
+            return _mcp_result(result)
 
         except ReinfiolibAPIError as e:
             return {
@@ -416,7 +445,7 @@ def create_mcp_server(api_key: str | None = None) -> FastMCP:
                     z=zoom_level, x=tile_x, y=tile_y, response_format=format_enum
                 )
 
-            return result
+            return _mcp_result(result)
 
         except ReinfiolibAPIError as e:
             return {
@@ -469,7 +498,7 @@ def create_mcp_server(api_key: str | None = None) -> FastMCP:
                     z=zoom_level, x=tile_x, y=tile_y, response_format=format_enum
                 )
 
-            return result
+            return _mcp_result(result)
 
         except ReinfiolibAPIError as e:
             return {
@@ -522,7 +551,7 @@ def create_mcp_server(api_key: str | None = None) -> FastMCP:
                     z=zoom_level, x=tile_x, y=tile_y, response_format=format_enum
                 )
 
-            return result
+            return _mcp_result(result)
 
         except ReinfiolibAPIError as e:
             return {
@@ -667,7 +696,7 @@ def create_mcp_server(api_key: str | None = None) -> FastMCP:
                         "error_type": type(e).__name__,
                     }
 
-            return results
+            return _mcp_result(results)
 
         except Exception as e:
             return {
@@ -692,7 +721,7 @@ def create_mcp_server(api_key: str | None = None) -> FastMCP:
             parameters: 公式マニュアル記載のqueryパラメータ
         """
         try:
-            return await client.request_api(api_id, **parameters)
+            return _mcp_result(await client.request_api(api_id, **parameters))
         except ReinfiolibAPIError as e:
             return {"error": str(e), "error_type": type(e).__name__}
 

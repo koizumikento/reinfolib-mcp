@@ -279,3 +279,7 @@ tramp
 # Local development scripts
 dev_scripts/
 local_scripts/
+# Sites build output and local runtime secrets
+sites/dist/
+sites/.env*
+!sites/.env.example
