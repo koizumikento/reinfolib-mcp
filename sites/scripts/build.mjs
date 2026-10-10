@@ -1,0 +1,13 @@
+import assert from "node:assert/strict";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+const root = new URL("../", import.meta.url);
+const source = await readFile(new URL("worker/index.js", root), "utf8");
+const manifest = await readFile(new URL(".openai/hosting.json", root), "utf8");
+assert.ok(JSON.parse(manifest).capabilities.includes("mcp"));
+const worker = await import(`data:text/javascript;base64,${Buffer.from(source).toString("base64")}`);
+assert.equal(typeof worker.default.fetch, "function");
+await mkdir(new URL("dist/server/", root), { recursive: true });
+await mkdir(new URL("dist/.openai/", root), { recursive: true });
+await writeFile(new URL("dist/server/index.js", root), source);
+await writeFile(new URL("dist/.openai/hosting.json", root), manifest);
+console.log("Validated Worker ESM artifact: sites/dist");

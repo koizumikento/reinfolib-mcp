@@ -76,6 +76,10 @@ PyPIには未公開です。GitHubから起動してください。
 }
 ```
 
+## Sitesでの実行
+
+Sites Worker ESM用の`POST /mcp` adapterと、既存13 tools・35 APIを再利用する認証付きPython backendを提供します。Sites単体ではなく、別途HTTPSで到達可能なPython backendが必要です。secret設定、build、検証、配備手順と未検証範囲は[sites/README.md](sites/README.md)を参照してください。Python library・CLI・stdio/http/sseは引き続き利用できます。MCPのPBF返却は`data`をbase64、`encoding`を`base64`として返し、Python libraryはbytesを維持します。
+
 ## CLI
 
 ```sh
