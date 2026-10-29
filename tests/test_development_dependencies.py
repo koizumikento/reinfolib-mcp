@@ -1,4 +1,4 @@
-"""Check the published development extra across supported Python versions."""
+"""Check published Python support and development-extra isolation."""
 
 from importlib.metadata import metadata, requires
 
@@ -28,13 +28,19 @@ def test_hook_dependencies_only_apply_on_python_311_and_later(python_version):
         assert ("filelock" in selected) == expected
 
 
-def test_filelock_security_floor_preserves_runtime_python_support():
+def test_security_floors_and_runtime_python_support():
     requirements = [Requirement(value) for value in requires("reinfolib-mcp")]
     filelock = next(item for item in requirements if item.name == "filelock")
     assert "4.2.3" not in filelock.specifier
     assert "4.2.4" in filelock.specifier
     assert "5.0.0" not in filelock.specifier
+    dnspython = next(item for item in requirements if item.name == "dnspython")
+    assert "2.8.0" not in dnspython.specifier
+    assert "2.9.0" in dnspython.specifier
+    assert "3.0.0" not in dnspython.specifier
+    assert dnspython.marker is None
     supported = SpecifierSet(metadata("reinfolib-mcp")["Requires-Python"])
-    assert "3.10.0" in supported
+    assert "3.10.0" not in supported
+    assert "3.11.0" in supported
     assert "3.13.0" in supported
     assert "3.14.0" not in supported
