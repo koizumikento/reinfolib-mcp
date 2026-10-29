@@ -24,14 +24,15 @@ cd reinfolib-mcp
 uv sync --frozen --extra dev
 ```
 
-サーバー・テスト・lint は Python 3.10 でも利用できます。`pre-commit` とその
-開発用依存 `filelock>=4.2.4,<5` は Python 3.11 以上でのみインストールします。
-Python 3.10 で開発する場合、次のように別の環境を使用してください。
+サーバー・開発環境ともに Python 3.11〜3.13 が必要です。dnspython の修正版
+`>=2.9.0,<3` を使用するため、Python 3.10 はサポートしません。
+`pre-commit` と `filelock>=4.2.4,<5` は引き続き開発用 extra のみの依存です。
+pre-commit を通常の開発環境から分離する場合は、次のように設定します。
 
 ```bash
-# Python 3.10 の開発・テスト環境
-uv sync --frozen --extra dev --python 3.10
-uv run --frozen --extra dev --python 3.10 pytest
+# Python 3.11 の開発・テスト環境
+uv sync --frozen --extra dev --python 3.11
+uv run --frozen --extra dev --python 3.11 pytest
 
 # pre-commit 用の独立した Python 3.11 環境（.venv は変更しない）
 UV_PROJECT_ENVIRONMENT=.cache/pre-commit uv sync --frozen --extra dev --python 3.11
@@ -57,7 +58,7 @@ uv run --frozen --extra dev isort --check-only src/ tests/ examples/
 
 ## コーディング方針
 
-- Python 3.10 以上を前提にします
+- Python 3.11 以上、3.14 未満を前提にします
 - フォーマットは `black`、import 整理は `isort`、lint は `ruff`、型チェックは `mypy` を使用します
 - 既存の命名規則と API インターフェースを優先し、互換性を壊す変更は明示してください
 - 新機能追加時は、可能な限り `tests/` に対応テストを追加してください
