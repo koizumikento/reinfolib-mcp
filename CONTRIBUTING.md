@@ -21,22 +21,38 @@
 git clone https://github.com/koizumikento/reinfolib-mcp.git
 cd reinfolib-mcp
 
-uv venv
-source .venv/bin/activate
-uv pip install -e ".[dev]"
-pre-commit install
+uv sync --frozen --extra dev
 ```
+
+サーバー・テスト・lint は Python 3.10 でも利用できます。`pre-commit` とその
+開発用依存 `filelock>=4.2.4,<5` は Python 3.11 以上でのみインストールします。
+Python 3.10 で開発する場合、次のように別の環境を使用してください。
+
+```bash
+# Python 3.10 の開発・テスト環境
+uv sync --frozen --extra dev --python 3.10
+uv run --frozen --extra dev --python 3.10 pytest
+
+# pre-commit 用の独立した Python 3.11 環境（.venv は変更しない）
+UV_PROJECT_ENVIRONMENT=.cache/pre-commit uv sync --frozen --extra dev --python 3.11
+UV_PROJECT_ENVIRONMENT=.cache/pre-commit uv run --frozen --extra dev --python 3.11 pre-commit --version
+```
+
+現在このリポジトリには `.pre-commit-config.yaml` がないため、hook の登録・実行は
+その設定を用意してから行います。pre-commit が作成する個々の Python hook 環境では
+依存関係が別途インストールされ、プロジェクトの `uv.lock` は自動適用されません。
+hook 自体のバージョンと依存関係は別途管理してください。
 
 ## 事前チェック
 
 Pull Request 前に、少なくとも以下を実行してください。
 
 ```bash
-uv run pytest
-uv run mypy src/reinfolib_mcp
-uv run ruff check src/ tests/ examples/
-uv run black src/ tests/ examples/
-uv run isort src/ tests/ examples/
+uv run --frozen --extra dev pytest
+uv run --frozen --extra dev mypy src/reinfolib_mcp
+uv run --frozen --extra dev ruff check src/ tests/ examples/
+uv run --frozen --extra dev black --check src/ tests/ examples/
+uv run --frozen --extra dev isort --check-only src/ tests/ examples/
 ```
 
 ## コーディング方針
