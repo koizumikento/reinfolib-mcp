@@ -143,10 +143,13 @@ asyncio.run(main())
 ## 開発
 
 ```sh
-uv sync
-uv run pytest -q
-uv run ruff check src tests
+uv sync --frozen --extra dev
+uv run --frozen --extra dev pytest -q
+uv run --frozen --extra dev ruff check src tests
 ```
+
+Python 3.10 でもテスト・lint を利用できます。pre-commit は Python 3.11 以上の
+別環境で利用します。詳細は [CONTRIBUTING.md](CONTRIBUTING.md#開発環境) を参照してください。
 
 ## ライセンスとデータ利用条件
 

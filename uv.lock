@@ -624,11 +624,11 @@ server = [
 
 [[package]]
 name = "filelock"
-version = "3.32.3"
+version = "4.2.4"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/7d/64/a02e6765de08964ed371eca577870593245afc9dfac16d037de7c10d18e6/filelock-3.32.3.tar.gz", hash = "sha256:0ffa185a3540854c95caa7fa76b76cb219d907415e2c5dc9af25fd970563487f", size = 218135, upload-time = "2026-08-13T16:00:05.577Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/d8/28/3893324bcadf8f89b1616637468d766af3f625008c0735bf704fdfa86617/filelock-4.2.4.tar.gz", hash = "sha256:c6d8663535e1650ee430507b4ffbac7b464dd64b7647ea0112a9f406499d163d", size = 652444, upload-time = "2026-10-19T01:57:51.001Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a7/8e/50f46a9c0ce8d2861a394c1347caae037ea0431d2f67d7feb151cbc4649a/filelock-3.32.3-py3-none-any.whl", hash = "sha256:7f0ca4bcc0e181c60dbbd8aa9ab5b120ebb99e4e064e83636340056f833a1f09", size = 98901, upload-time = "2026-08-13T16:00:03.974Z" },
+    { url = "https://files.pythonhosted.org/packages/e0/1b/5e74289a1878e666bb4b65fe5805a04cafcac2aa5f519ef1ead67ef91c56/filelock-4.2.4-py3-none-any.whl", hash = "sha256:301241438c57936ef93f4243a94f2559022268bfcf9b375a9a72eb0f8db8358e", size = 162475, upload-time = "2026-10-19T01:57:49.419Z" },
 ]
 
 [[package]]
@@ -1612,9 +1612,10 @@ dependencies = [
 [package.optional-dependencies]
 dev = [
     { name = "black" },
+    { name = "filelock", marker = "python_full_version >= '3.11'" },
     { name = "isort" },
     { name = "mypy" },
-    { name = "pre-commit" },
+    { name = "pre-commit", marker = "python_full_version >= '3.11'" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
@@ -1643,11 +1644,12 @@ requires-dist = [
     { name = "black", marker = "extra == 'dev'", specifier = ">=23.0.0" },
     { name = "click", specifier = ">=8.5.0" },
     { name = "fastmcp", specifier = ">=4.0.10,<5" },
+    { name = "filelock", marker = "python_full_version >= '3.11' and extra == 'dev'", specifier = ">=4.2.4,<5" },
     { name = "geojson", specifier = ">=3.0.0" },
     { name = "httpx", specifier = ">=0.25.0" },
     { name = "isort", marker = "extra == 'dev'", specifier = ">=9.0.2,<10" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.5.0" },
-    { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=3.0.0" },
+    { name = "pre-commit", marker = "python_full_version >= '3.11' and extra == 'dev'", specifier = ">=3.0.0" },
     { name = "pydantic", specifier = ">=2.13.5" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0.0" },
     { name = "pytest", marker = "extra == 'test'", specifier = ">=7.0.0" },
@@ -2025,7 +2027,6 @@ dependencies = [
     { name = "packaging" },
     { name = "platformdirs" },
     { name = "python-discovery" },
-    { name = "typing-extensions", marker = "python_full_version < '3.11'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/d0/04/2f69ba1207ce59630ecea8ebfdaf5c8f9a14726f2408ccd145a18d1ef619/virtualenv-21.14.9.tar.gz", hash = "sha256:4d1bee354cd81c820da3bee56e38be3426490f8d1fc54e10ea5b2072ebad8ef8", size = 5500672, upload-time = "2026-10-17T16:09:42.345Z" }
 wheels = [
