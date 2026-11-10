@@ -184,8 +184,6 @@ uv run --frozen --extra dev pytest -q
 uv run --frozen --extra dev ruff check src tests
 ```
 
-dnspython の [DNS パーサー脆弱性](https://github.com/rthalley/dnspython/security/advisories/GHSA-45c3-73f7-pv4m)
-を修正した 2.9.0 以降を使用するため、Python 3.10 の対応を終了しました。
 開発環境と pre-commit の分離については [CONTRIBUTING.md](CONTRIBUTING.md#開発環境) を参照してください。
 
 ## ライセンスとデータ利用条件
