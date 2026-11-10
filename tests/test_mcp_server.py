@@ -387,6 +387,7 @@ class TestMCPServerRunner:
 
         mock_create_server.assert_called_once_with("test_key")
         mock_mcp.run.assert_called_once_with(transport="stdio")
+        assert all(call.kwargs.get("file") is sys.stderr for call in mock_print.call_args_list)
 
     @patch("reinfolib_mcp.mcp_server.create_mcp_server")
     @patch("builtins.print")
@@ -435,7 +436,7 @@ class TestMCPServerRunner:
         run_server()
 
         # エラーメッセージが出力されることを確認
-        mock_print.assert_any_call("エラー: APIキーが設定されていません")
+        mock_print.assert_any_call("エラー: APIキーが設定されていません", file=sys.stderr)
 
     @patch("reinfolib_mcp.mcp_server.create_mcp_server")
     @patch("builtins.print")
@@ -456,4 +457,4 @@ class TestMCPServerRunner:
         with pytest.raises(Exception, match="Server creation failed"):
             run_server(api_key="test_key")
 
-        mock_print.assert_any_call("サーバー起動エラー: Server creation failed")
+        mock_print.assert_any_call("サーバー起動エラー: Server creation failed", file=sys.stderr)

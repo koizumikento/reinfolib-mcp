@@ -98,8 +98,8 @@ def main(
         validated_api_key = validate_api_key(api_key)
         ctx.obj["api_key"] = validated_api_key
 
-        click.echo("不動産情報ライブラリMCPサーバーを起動します...")
-        click.echo(f"トランスポート: {transport}")
+        click.echo("不動産情報ライブラリMCPサーバーを起動します...", err=transport == "stdio")
+        click.echo(f"トランスポート: {transport}", err=transport == "stdio")
 
         if transport != "stdio":
             click.echo(f"サーバーURL: http://{host}:{port}")

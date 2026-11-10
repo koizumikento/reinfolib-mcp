@@ -2,6 +2,8 @@
 
 国土交通省の[不動産情報ライブラリAPI](https://www.reinfolib.mlit.go.jp/help/apiManual/)を、MCPサーバー・CLI・Pythonクライアントから利用するための非公式OSSです。2026年11月10日時点の公開36 APIに対応しています。
 
+[MCP登録](#mcpクライアントに登録する) · [CLI](#cliで使う) · [Pythonライブラリ](#pythonライブラリとして使う)
+
 ## 必要なもの
 
 - Python 3.11〜3.13
@@ -20,9 +22,26 @@ PowerShellでは次のように設定します。
 $env:REINFOLIB_API_KEY = "your_api_key"
 ```
 
-## MCPクライアントへ設定
+## MCPクライアントに登録する
 
-PyPIには未公開です。GitHubから起動してください。
+ローカルで動くSTDIOサーバーとして、GitHubから `uvx` で起動します。`uvx` でのインストールには Git が必要です。 設定例の `your_api_key` は手元で差し替えてください。
+
+### Codex
+
+```sh
+codex mcp add reinfolib --env "REINFOLIB_API_KEY=your_api_key" -- uvx --python 3.12 --no-build-package filelock --from git+https://github.com/koizumikento/reinfolib-mcp.git@main reinfolib-mcp
+codex mcp list
+```
+
+新しいセッションの `/mcp` で接続を確認します。デスクトップ版では設定の「MCP servers」でSTDIOを選び、下のJSONと同じコマンド・引数を入力して保存し、再起動します。 環境変数も設定してください。 [OpenAI公式のMCP設定](https://learn.chatgpt.com/docs/extend/mcp)
+
+### Claude Desktop / Cursor
+
+- Claude Desktop（Windows） `%APPDATA%/Claude/claude_desktop_config.json`
+- Claude Desktop（macOS） `~/Library/Application Support/Claude/claude_desktop_config.json`
+- Cursor `.cursor/mcp.json`（プロジェクト内）
+
+既存の `mcpServers` に項目を追加し、保存後にクライアントを再起動します。`uvx` が見つからない場合は `command` に実行ファイルの絶対パスを指定してください。
 
 ```json
 {
@@ -30,7 +49,10 @@ PyPIには未公開です。GitHubから起動してください。
     "reinfolib": {
       "command": "uvx",
       "args": [
-        "--no-build-package", "filelock",
+        "--python",
+        "3.12",
+        "--no-build-package",
+        "filelock",
         "--from",
         "git+https://github.com/koizumikento/reinfolib-mcp.git@main",
         "reinfolib-mcp"
@@ -81,29 +103,35 @@ PyPIには未公開です。GitHubから起動してください。
 
 Sites Worker ESM用の`POST /mcp` adapterと、既存13 tools・36 APIを再利用する認証付きPython backendを提供します。Sites単体ではなく、別途HTTPSで到達可能なPython backendが必要です。secret設定、build、検証、配備手順と未検証範囲は[sites/README.md](sites/README.md)を参照してください。Python library・CLI・stdio/http/sseは引き続き利用できます。MCPのPBF返却は`data`をbase64、`encoding`を`base64`として返し、Python libraryはbytesを維持します。
 
-## CLI
+## CLIで使う
+
+上の手順で `REINFOLIB_API_KEY` を設定してから実行します。各行はPowerShellでも実行できます。
 
 ```sh
 # 取引価格を検索
-uvx --no-build-package filelock --from git+https://github.com/koizumikento/reinfolib-mcp.git@main \
-  reinfolib-mcp search --year 2015 --quarter 2 --city 13102
+uvx --python 3.12 --no-build-package filelock --from git+https://github.com/koizumikento/reinfolib-mcp.git@main reinfolib-mcp search --year 2015 --quarter 2 --city 13102
 
 # 市区町村一覧
-uvx --no-build-package filelock --from git+https://github.com/koizumikento/reinfolib-mcp.git@main \
-  reinfolib-mcp municipalities --area 13
+uvx --python 3.12 --no-build-package filelock --from git+https://github.com/koizumikento/reinfolib-mcp.git@main reinfolib-mcp municipalities --area 13
 
 # 緯度経度周辺の地価・都市計画情報
-uvx --no-build-package filelock --from git+https://github.com/koizumikento/reinfolib-mcp.git@main \
-  reinfolib-mcp location --latitude 35.6851 --longitude 139.7514 --year 2025
+uvx --python 3.12 --no-build-package filelock --from git+https://github.com/koizumikento/reinfolib-mcp.git@main reinfolib-mcp location --latitude 35.6851 --longitude 139.7514 --year 2025
 
 # 特別注視区域のGeoJSONを取得
-uvx --no-build-package filelock --from git+https://github.com/koizumikento/reinfolib-mcp.git@main \
-  reinfolib-mcp api XNT001 --param response_format geojson --param z 11 --param x 1723 --param y 880
+uvx --python 3.12 --no-build-package filelock --from git+https://github.com/koizumikento/reinfolib-mcp.git@main reinfolib-mcp api XNT001 --param response_format geojson --param z 11 --param x 1723 --param y 880
 ```
 
 `api`はAPI IDと公式パラメータを指定する汎用コマンドです。結果は標準出力へ書き出します。`response_format`に`pbf`を指定するとバイナリのまま出力します。
 
-## Python
+## Pythonライブラリとして使う
+
+自分のPythonプロジェクト（`pyproject.toml` があるディレクトリ）で依存関係に追加します。[CLIで使う](#cliで使う)と同様に、実行するシェルで `REINFOLIB_API_KEY` を設定してください。
+
+```sh
+uv add --no-build-package filelock "git+https://github.com/koizumikento/reinfolib-mcp.git@main"
+```
+
+次のコードを `example.py` に保存し、同じディレクトリで `uv run --no-build-package filelock python example.py` を実行します。
 
 ```python
 import asyncio

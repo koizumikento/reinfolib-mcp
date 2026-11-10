@@ -96,6 +96,8 @@ class TestCLIMain:
         result = self.runner.invoke(main, ["--api-key", "test_key"])
 
         assert result.exit_code == 0
+        assert result.stdout == ""
+        assert "トランスポート: stdio" in result.stderr
         mock_run_server.assert_called_once_with(
             api_key="test_key", transport="stdio", host="localhost", port=8000
         )

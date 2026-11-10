@@ -6,6 +6,7 @@ FastMCPライブラリを使用して不動産情報ライブラリAPIをMCPツ�
 
 import base64
 import os
+import sys
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any, TypeVar, cast
@@ -768,14 +769,16 @@ def run_server(
         host: HTTPホスト名
         port: HTTPポート番号
     """
+    output = sys.stderr if transport == "stdio" else sys.stdout
     # APIキーの取得
     if not api_key:
         api_key = os.getenv("REINFOLIB_API_KEY")
 
     if not api_key:
-        print("エラー: APIキーが設定されていません")
+        print("エラー: APIキーが設定されていません", file=output)
         print(
-            "環境変数REINFOLIB_API_KEYを設定するか、--api-keyオプションで指定してください"
+            "環境変数REINFOLIB_API_KEYを設定するか、--api-keyオプションで指定してください",
+            file=output,
         )
         return
 
@@ -783,8 +786,8 @@ def run_server(
         # MCPサーバー作成と起動
         mcp = create_mcp_server(api_key)
 
-        print("不動産情報ライブラリMCPサーバーを起動中...")
-        print(f"トランスポート: {transport}")
+        print("不動産情報ライブラリMCPサーバーを起動中...", file=output)
+        print(f"トランスポート: {transport}", file=output)
 
         if transport == "stdio":
             mcp.run(transport="stdio")
@@ -798,7 +801,7 @@ def run_server(
             raise ValueError(f"未対応のトランスポート: {transport}")
 
     except Exception as e:
-        print(f"サーバー起動エラー: {e}")
+        print(f"サーバー起動エラー: {e}", file=output)
         raise
 
 
