@@ -15,6 +15,7 @@ jobs:
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           python-version: "3.12"
+      - run: python scripts/check_filelock_wheel_only.py
       - run: uv sync --frozen --extra dev
       - uses: actions/setup-node@v7
         with:
@@ -30,7 +31,7 @@ jobs:
         shell: bash
         run: |
           WHEEL=$(find dist -name '*.whl' -print -quit)
-          uv run --isolated --no-project --with "$WHEEL" python - <<'PY'
+          uv run --isolated --no-project --no-build-package filelock --with "$WHEEL" python - <<'PY'
           import asyncio
           from reinfolib_mcp.client import API_CONTRACTS
           from reinfolib_mcp.mcp_server import create_mcp_server

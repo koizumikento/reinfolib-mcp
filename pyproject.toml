@@ -179,3 +179,7 @@ dev = [
     "pytest-mock>=3.14.1",
     "ruff>=0.16.9",
 ]
+
+[tool.uv]
+# Use the published wheel; do not execute filelock's source-build hooks.
+no-build-package = ["filelock"]
