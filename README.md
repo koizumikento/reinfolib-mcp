@@ -30,6 +30,7 @@ PyPIには未公開です。GitHubから起動してください。
     "reinfolib": {
       "command": "uvx",
       "args": [
+        "--no-build-package", "filelock",
         "--from",
         "git+https://github.com/koizumikento/reinfolib-mcp.git@main",
         "reinfolib-mcp"
@@ -84,15 +85,15 @@ Sites Worker ESM用の`POST /mcp` adapterと、既存13 tools・35 APIを再利�
 
 ```sh
 # 取引価格を検索
-uvx --from git+https://github.com/koizumikento/reinfolib-mcp.git@main \
+uvx --no-build-package filelock --from git+https://github.com/koizumikento/reinfolib-mcp.git@main \
   reinfolib-mcp search --year 2015 --quarter 2 --city 13102
 
 # 市区町村一覧
-uvx --from git+https://github.com/koizumikento/reinfolib-mcp.git@main \
+uvx --no-build-package filelock --from git+https://github.com/koizumikento/reinfolib-mcp.git@main \
   reinfolib-mcp municipalities --area 13
 
 # 緯度経度周辺の地価・都市計画情報
-uvx --from git+https://github.com/koizumikento/reinfolib-mcp.git@main \
+uvx --no-build-package filelock --from git+https://github.com/koizumikento/reinfolib-mcp.git@main \
   reinfolib-mcp location --latitude 35.6851 --longitude 139.7514 --year 2025
 ```
 
@@ -161,3 +162,8 @@ dnspython の [DNS パーサー脆弱性](https://github.com/rthalley/dnspython/
 > このサービスは、国土交通省の不動産情報ライブラリのAPI機能を使用していますが、提供情報の最新性、正確性、完全性等が保証されたものではありません
 
 このリポジトリおよび作者は国土交通省とは関係ありません。
+
+### filelock の wheel 限定インストール
+
+リポジトリ内の `uv sync` / `uv run` は `pyproject.toml` の設定で filelock のソースビルドを禁止します。wheel が利用できない場合はインストールを中止します。
+外部から実行する `uvx` にはこの設定が引き継がれないため、上記の例では `--no-build-package filelock` を明示しています。他のインストーラーでは同等の wheel 限定設定を指定してください（pip の場合は `--only-binary=filelock`）。
