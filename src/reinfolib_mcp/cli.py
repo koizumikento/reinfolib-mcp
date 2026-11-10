@@ -108,6 +108,38 @@ def main(
         run_server(api_key=validated_api_key, transport=transport, host=host, port=port)
 
 
+@main.command("api")
+@click.argument("api_id")
+@click.option(
+    "--param",
+    "parameters",
+    type=(str, str),
+    multiple=True,
+    metavar="NAME VALUE",
+    help="公式クエリパラメータ。必要な数だけ繰り返して指定します。",
+)
+@click.pass_context
+def call_api(
+    ctx: click.Context, api_id: str, parameters: tuple[tuple[str, str], ...]
+) -> None:
+    """公開APIをIDで呼び出し、JSONまたはPBFを標準出力へ書き出します。"""
+    api_key = validate_api_key(ctx.obj.get("api_key"))
+    query = dict(parameters)
+
+    async def request() -> None:
+        async with ReinfiolibClient(api_key=api_key) as client:
+            result = await client.request_api(api_id, **query)
+        if query.get("response_format") == "pbf":
+            click.echo(result["data"], nl=False)
+        else:
+            click.echo(json.dumps(result, ensure_ascii=False))
+
+    try:
+        asyncio.run(request())
+    except ReinfiolibAPIError as exc:
+        raise click.ClickException(str(exc)) from exc
+
+
 @main.command()
 @click.option("--year", type=int, required=True, help="取引年（YYYY）")
 @click.option("--area", help="都道府県コード（area/city/stationのいずれか必須）")

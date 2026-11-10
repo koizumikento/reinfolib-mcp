@@ -707,7 +707,7 @@ def create_mcp_server(api_key: str | None = None) -> FastMCP:
 
     @mcp.tool(
         name="reinfolib_get_api_data",
-        description="現行の公開API 35種をAPI IDと公式パラメータ名で呼び出します。",
+        description="公開APIをAPI IDと公式パラメータ名で呼び出します。",
         tags={"api", "public-data", "geospatial"},
     )
     async def get_api_data(

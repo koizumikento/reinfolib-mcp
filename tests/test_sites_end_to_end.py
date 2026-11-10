@@ -140,7 +140,7 @@ async def test_worker_backend_sdk_and_cleanup():
                 if method == "tools/list":
                     assert len(result["tools"]) == 13
                 else:
-                    assert result["structuredContent"]["available_endpoints"] == 35
+                    assert result["structuredContent"]["available_endpoints"] == 36
             for method in ["server/discover", "tools/list"]:
                 response = await probe.post(
                     endpoint,
@@ -163,7 +163,7 @@ async def test_worker_backend_sdk_and_cleanup():
                 )
                 assert len(await client.list_tools()) == 13
                 status = await client.call_tool("reinfolib_server_status", {})
-                assert status.data["available_endpoints"] == 35
+                assert status.data["available_endpoints"] == 36
                 assert set(status.data["endpoints"]) == set(API_CONTRACTS)
                 tile = await client.call_tool(
                     "reinfolib_get_api_data",

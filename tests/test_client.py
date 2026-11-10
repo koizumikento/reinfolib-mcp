@@ -81,11 +81,12 @@ EXPECTED_API_PARAMETERS = {
     "XKT031": ({"response_format", "z", "x", "y"}, {"administrativeAreaCode"}, set()),
     "XGT001": ({"response_format", "z", "x", "y"}, set(), set()),
     "XST001": ({"response_format", "z", "x", "y"}, {"disastertype_code"}, set()),
+    "XNT001": ({"response_format", "z", "x", "y"}, set(), set()),
 }
 
 
 def test_official_api_contract_is_complete() -> None:
-    assert len(API_CONTRACTS) == 35
+    assert len(API_CONTRACTS) == 36
     assert set(API_CONTRACTS) == set(EXPECTED_API_PARAMETERS)
     for api_id, (required, optional, one_of) in EXPECTED_API_PARAMETERS.items():
         contract = API_CONTRACTS[api_id]

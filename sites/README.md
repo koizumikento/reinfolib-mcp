@@ -5,7 +5,7 @@ This is a local implementation and review artifact; no Site, plugin, backend,
 tunnel or account has been provisioned by this change.
 
 The Worker exposes stateless `POST /mcp`. The backend reuses all 13 existing
-MCP tools and all 35 API contracts. Python library/CLI/stdio/http/sse remain
+MCP tools and all 36 API contracts. Python library/CLI/stdio/http/sse remain
 available. No Python package executes inside the Sites Worker: a separately
 operated Python backend is required. This avoids a second implementation of
 API validation, retries, rate limits, geospatial assembly and tool schemas.
@@ -146,7 +146,7 @@ Protocol/runtime references checked 2026-10-10:
 - [Cloudflare Tunnel HTTP origin](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/)
 
 The checked lock contains FastMCP 4.0.10 / MCP SDK 2.2.0; no dependency update
-is needed. Local tests use synthetic fixtures, including all 35 API IDs, schema
+is needed. Local tests use synthetic fixtures, including all 36 API IDs, schema
 parity, errors and non-UTF-8 PBF. Loopback SDK calls assert negotiated modern
 `2026-07-28` and legacy `2025-11-25` rather than treating fallback as modern success.
 They do not prove actual Sites Dispatch identity,

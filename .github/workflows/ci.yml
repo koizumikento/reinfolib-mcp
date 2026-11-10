@@ -37,7 +37,7 @@ jobs:
           from reinfolib_mcp.mcp_server import create_mcp_server
 
           async def main():
-              assert len(API_CONTRACTS) == 35
+              assert len(API_CONTRACTS) == 36
               tools = await create_mcp_server("test").list_tools()
               assert "reinfolib_get_api_data" in {tool.name for tool in tools}
 

@@ -107,7 +107,7 @@ async def test_cli_stdio_initialization() -> None:
     async with Client(transport, mode="legacy", timeout=10) as client:
         assert len(await client.list_tools()) == 13
         status = await client.call_tool("reinfolib_server_status", {})
-        assert status.data["available_endpoints"] == 35
+        assert status.data["available_endpoints"] == 36
 
 
 class TestMCPServerCreation:

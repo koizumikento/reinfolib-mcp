@@ -5,10 +5,67 @@ CLIのテスト
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
+import pytest
 from click.testing import CliRunner
 
 from reinfolib_mcp.cli import main
 from reinfolib_mcp.exceptions import ReinfiolibAPIError
+
+
+@pytest.mark.parametrize("response_format", ["geojson", "pbf"])
+def test_api_command_writes_upstream_result(response_format):
+    geojson = {"type": "FeatureCollection", "features": []}
+    pbf = b"\x1a\x80\x00\xff"
+    response = (
+        httpx.Response(200, json=geojson)
+        if response_format == "geojson"
+        else httpx.Response(200, content=pbf)
+    )
+    upstream = AsyncMock(return_value=response)
+    with patch("httpx.AsyncClient.get", upstream):
+        result = CliRunner().invoke(
+            main,
+            [
+                "--api-key",
+                "test_key",
+                "api",
+                "XNT001",
+                "--param",
+                "response_format",
+                response_format,
+                "--param",
+                "z",
+                "11",
+                "--param",
+                "x",
+                "1723",
+                "--param",
+                "y",
+                "880",
+            ],
+        )
+
+    assert result.exit_code == 0
+    upstream.assert_awaited_once_with(
+        "https://www.reinfolib.mlit.go.jp/ex-api/external/XNT001",
+        params={"response_format": response_format, "z": "11", "x": "1723", "y": "880"},
+    )
+    if response_format == "pbf":
+        assert result.stdout_bytes == pbf
+    else:
+        assert json.loads(result.stdout) == geojson
+
+
+def test_api_command_reports_missing_parameters_without_a_request():
+    upstream = AsyncMock()
+    with patch("httpx.AsyncClient.get", upstream):
+        result = CliRunner().invoke(main, ["--api-key", "test_key", "api", "XNT001"])
+
+    assert result.exit_code == 1
+    assert "必須パラメータ" in result.stderr
+    assert result.stdout == ""
+    upstream.assert_not_awaited()
 
 
 class TestCLIMain:

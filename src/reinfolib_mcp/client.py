@@ -54,7 +54,7 @@ def _contract(
 
 _TILE_REQUIRED = ("response_format", "z", "x", "y")
 
-# 公式公開API一覧（2026-08-20確認）を正とする。
+# 公式公開API一覧（2026-11-10確認）を正とする。
 API_CONTRACTS: dict[str, APIContract] = {
     "XIT001": _contract(
         "不動産価格（取引価格・成約価格）情報取得API",
@@ -123,6 +123,7 @@ API_CONTRACTS: dict[str, APIContract] = {
     "XKT031": _contract("人口集中地区API", _TILE_REQUIRED, ("administrativeAreaCode",)),
     "XGT001": _contract("指定緊急避難場所API", _TILE_REQUIRED),
     "XST001": _contract("災害履歴API", _TILE_REQUIRED, ("disastertype_code",)),
+    "XNT001": _contract("内閣府重要土地等調査法（特別注視区域）API", _TILE_REQUIRED),
 }
 
 
