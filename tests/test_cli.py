@@ -13,8 +13,12 @@ from reinfolib_mcp.cli import main
 from reinfolib_mcp.exceptions import ReinfiolibAPIError
 
 
+@pytest.mark.parametrize(
+    ("api_id", "z", "x", "y"),
+    [("XNT001", "11", "1723", "880"), ("XKT032", "14", "14423", "6476")],
+)
 @pytest.mark.parametrize("response_format", ["geojson", "pbf"])
-def test_api_command_writes_upstream_result(response_format):
+def test_api_command_writes_upstream_result(api_id, z, x, y, response_format):
     geojson = {"type": "FeatureCollection", "features": []}
     pbf = b"\x1a\x80\x00\xff"
     response = (
@@ -30,26 +34,26 @@ def test_api_command_writes_upstream_result(response_format):
                 "--api-key",
                 "test_key",
                 "api",
-                "XNT001",
+                api_id,
                 "--param",
                 "response_format",
                 response_format,
                 "--param",
                 "z",
-                "11",
+                z,
                 "--param",
                 "x",
-                "1723",
+                x,
                 "--param",
                 "y",
-                "880",
+                y,
             ],
         )
 
     assert result.exit_code == 0
     upstream.assert_awaited_once_with(
-        "https://www.reinfolib.mlit.go.jp/ex-api/external/XNT001",
-        params={"response_format": response_format, "z": "11", "x": "1723", "y": "880"},
+        f"https://www.reinfolib.mlit.go.jp/ex-api/external/{api_id}",
+        params={"response_format": response_format, "z": z, "x": x, "y": y},
     )
     if response_format == "pbf":
         assert result.stdout_bytes == pbf
