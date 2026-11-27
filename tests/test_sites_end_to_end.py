@@ -21,6 +21,12 @@ import httpx
 import uvicorn
 from reinfolib_mcp.sites_backend import create_app
 async def fixture_get(self, url, **kwargs):
+    if url.endswith('/XKT032'):
+        assert self.headers['Ocp-Apim-Subscription-Key'] == 'synthetic-api-key'
+        assert kwargs['params'] == {
+            'response_format': 'pbf', 'z': 14, 'x': 14423, 'y': 6476,
+        }
+        return httpx.Response(200, content=b'xkt032-tile')
     if kwargs['params'].get('response_format') == 'pbf':
         return httpx.Response(200, content=b'\\x00\\xff\\x80tile')
     return httpx.Response(200, json={'type': 'FeatureCollection', 'features': [],
@@ -140,7 +146,7 @@ async def test_worker_backend_sdk_and_cleanup():
                 if method == "tools/list":
                     assert len(result["tools"]) == 13
                 else:
-                    assert result["structuredContent"]["available_endpoints"] == 36
+                    assert result["structuredContent"]["available_endpoints"] == 37
             for method in ["server/discover", "tools/list"]:
                 response = await probe.post(
                     endpoint,
@@ -163,23 +169,23 @@ async def test_worker_backend_sdk_and_cleanup():
                 )
                 assert len(await client.list_tools()) == 13
                 status = await client.call_tool("reinfolib_server_status", {})
-                assert status.data["available_endpoints"] == 36
+                assert status.data["available_endpoints"] == 37
                 assert set(status.data["endpoints"]) == set(API_CONTRACTS)
                 tile = await client.call_tool(
                     "reinfolib_get_api_data",
                     {
-                        "api_id": "XKT026",
+                        "api_id": "XKT032",
                         "parameters": {
                             "response_format": "pbf",
                             "z": 14,
-                            "x": 14624,
-                            "y": 6016,
+                            "x": 14423,
+                            "y": 6476,
                         },
                     },
                 )
                 assert tile.data == {
                     "format": "pbf",
-                    "data": "AP+AdGlsZQ==",
+                    "data": "eGt0MDMyLXRpbGU=",
                     "encoding": "base64",
                 }
                 geo = await client.call_tool(
@@ -191,7 +197,11 @@ async def test_worker_backend_sdk_and_cleanup():
                         "response_format": "pbf",
                     },
                 )
-                assert geo.data["data"]["land_price"] == tile.data
+                assert geo.data["data"]["land_price"] == {
+                    "format": "pbf",
+                    "data": "AP+AdGlsZQ==",
+                    "encoding": "base64",
+                }
                 invalid = await client.call_tool(
                     "reinfolib_get_api_data",
                     {

@@ -1,6 +1,6 @@
 # reinfolib-mcp
 
-国土交通省の[不動産情報ライブラリAPI](https://www.reinfolib.mlit.go.jp/help/apiManual/)を、MCPサーバー・CLI・Pythonクライアントから利用するための非公式OSSです。2026年11月10日時点の公開36 APIに対応しています。
+国土交通省の[不動産情報ライブラリAPI](https://www.reinfolib.mlit.go.jp/help/apiManual/)を、MCPサーバー・CLI・Pythonクライアントから利用するための非公式OSSです。2026年11月27日時点の公開37 APIに対応しています。
 
 [MCP登録](#mcpクライアントに登録する) · [CLI](#cliで使う) · [Pythonライブラリ](#pythonライブラリとして使う)
 
@@ -101,7 +101,7 @@ codex mcp list
 
 ## Sitesでの実行
 
-Sites Worker ESM用の`POST /mcp` adapterと、既存13 tools・36 APIを再利用する認証付きPython backendを提供します。Sites単体ではなく、別途HTTPSで到達可能なPython backendが必要です。secret設定、build、検証、配備手順と未検証範囲は[sites/README.md](sites/README.md)を参照してください。Python library・CLI・stdio/http/sseは引き続き利用できます。MCPのPBF返却は`data`をbase64、`encoding`を`base64`として返し、Python libraryはbytesを維持します。
+Sites Worker ESM用の`POST /mcp` adapterと、既存13 tools・37 APIを再利用する認証付きPython backendを提供します。Sites単体ではなく、別途HTTPSで到達可能なPython backendが必要です。secret設定、build、検証、配備手順と未検証範囲は[sites/README.md](sites/README.md)を参照してください。Python library・CLI・stdio/http/sseは引き続き利用できます。MCPのPBF返却は`data`をbase64、`encoding`を`base64`として返し、Python libraryはbytesを維持します。
 
 ## CLIで使う
 
@@ -116,6 +116,9 @@ uvx --python 3.12 --no-build-package filelock --from git+https://github.com/koiz
 
 # 緯度経度周辺の地価・都市計画情報
 uvx --python 3.12 --no-build-package filelock --from git+https://github.com/koizumikento/reinfolib-mcp.git@main reinfolib-mcp location --latitude 35.6851 --longitude 139.7514 --year 2025
+
+# 雨水出水（内水）浸水想定区域のGeoJSONを取得
+uvx --python 3.12 --no-build-package filelock --from git+https://github.com/koizumikento/reinfolib-mcp.git@main reinfolib-mcp api XKT032 --param response_format geojson --param z 14 --param x 14423 --param y 6476
 
 # 特別注視区域のGeoJSONを取得
 uvx --python 3.12 --no-build-package filelock --from git+https://github.com/koizumikento/reinfolib-mcp.git@main reinfolib-mcp api XNT001 --param response_format geojson --param z 11 --param x 1723 --param y 880
@@ -170,6 +173,7 @@ asyncio.run(main())
 | XKT013〜XKT025 | 人口、都市計画、施設、地形、防災情報 |
 | XKT026〜XKT029 | 洪水、高潮、津波、土砂災害警戒区域 |
 | XKT030〜XKT031 | 都市計画道路、人口集中地区 |
+| XKT032 | [雨水出水（内水）浸水想定区域](https://www.reinfolib.mlit.go.jp/help/apiManual/xkt032/)（GeoJSONまたはPBF、ズーム13〜15） |
 | XGT001 | 指定緊急避難場所 |
 | XST001 | 災害履歴 |
 | XNT001 | [重要土地等調査法の特別注視区域](https://www.reinfolib.mlit.go.jp/help/apiManual/xnt001/)（GeoJSONまたはPBF、ズーム11〜15） |
