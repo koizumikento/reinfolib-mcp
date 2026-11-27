@@ -9,6 +9,7 @@ import httpx
 import pytest
 from click.testing import CliRunner
 
+from reinfolib_mcp import __version__
 from reinfolib_mcp.cli import main
 from reinfolib_mcp.exceptions import ReinfiolibAPIError
 
@@ -92,7 +93,7 @@ class TestCLIMain:
         result = self.runner.invoke(main, ["--version"])
 
         assert result.exit_code == 0
-        assert "0.2.0" in result.output
+        assert __version__ in result.output
 
     @patch("reinfolib_mcp.cli.run_server")
     def test_cli_default_mcp_server(self, mock_run_server):
@@ -468,7 +469,7 @@ class TestCLIStatusCommand:
 
         assert result.exit_code == 0
         assert "不動産情報ライブラリMCP 状態確認" in result.output
-        assert "バージョン: 0.2.0" in result.output
+        assert f"バージョン: {__version__}" in result.output
         assert "APIキー設定: ✓" in result.output
         assert "API接続: ✓" in result.output
 
